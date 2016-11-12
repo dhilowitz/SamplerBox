@@ -38,6 +38,7 @@ from chunk import Chunk
 import struct
 import rtmidi_python as rtmidi
 import samplerbox_audio
+import random
 
 
 #########################################
@@ -124,11 +125,12 @@ class PlayingSound:
 
 class Sound:
 
-    def __init__(self, filename, midinote, velocity):
+    def __init__(self, filename, midinote, velocity, seq):
         wf = waveread(filename)
         self.fname = filename
         self.midinote = midinote
         self.velocity = velocity
+        self.seq = seq
         if wf.getloops():
             self.loop = wf.getloops()[0][0]
             self.nframes = wf.getloops()[0][1] + 2
@@ -162,6 +164,7 @@ SPEED = numpy.power(2, numpy.arange(0.0, 84.0)/12).astype(numpy.float32)
 
 samples = {}
 playingnotes = {}
+lastplayedseq = {}
 sustainplayingnotes = []
 sustain = False
 playingsounds = []
@@ -190,7 +193,7 @@ def AudioCallback(in_data, frame_count, time_info, status):
 
 
 def MidiCallback(message, time_stamp):
-    global playingnotes, sustain, sustainplayingnotes
+    global playingnotes, sustain, sustainplayingnotes, lastplayedseq
     global preset
     messagetype = message[0] >> 4
     messagechannel = (message[0] & 15) + 1
@@ -204,7 +207,24 @@ def MidiCallback(message, time_stamp):
     if messagetype == 9:    # Note on
         midinote += globaltranspose
         try:
-            playingnotes.setdefault(midinote, []).append(samples[midinote, velocity].play(midinote))
+            # Get the list of available samples for this note and velocity
+            notesamples = samples[midinote, velocity]
+            
+            # Choose a sample from the list
+            sample = random.choice (notesamples)
+            
+            # If we have no value for lastplayedseq, set it to 0
+            lastplayedseq.setdefault(midinote, 0)
+
+            # If we have more than 2 samples to work with, reject duplicates
+            if len(notesamples) >= 3:
+                while sample.seq == lastplayedseq[midinote]:
+                    sample = random.choice (notesamples)
+
+            # print "About to play midinote: %s, seq: %s" % (midinote, sample.seq)
+            playingnotes.setdefault(midinote, []).append(sample.play(midinote))
+            # Recorded the last played note
+            lastplayedseq[midinote] = sample.seq
         except:
             pass
 
@@ -290,12 +310,13 @@ def ActuallyLoad():
                     if r'%%transpose' in pattern:
                         globaltranspose = int(pattern.split('=')[1].strip())
                         continue
-                    defaultparams = {'midinote': '0', 'velocity': '127', 'notename': ''}
+                    defaultparams = {'midinote': '0', 'velocity': '127', 'notename': '', 'seq': 1}
                     if len(pattern.split(',')) > 1:
                         defaultparams.update(dict([item.split('=') for item in pattern.split(',', 1)[1].replace(' ', '').replace('%', '').split(',')]))
                     pattern = pattern.split(',')[0]
                     pattern = re.escape(pattern.strip())
                     pattern = pattern.replace(r"\%midinote", r"(?P<midinote>\d+)").replace(r"\%velocity", r"(?P<velocity>\d+)")\
+                                     .replace(r"\%seq", r"(?P<seq>\d+)")\
                                      .replace(r"\%notename", r"(?P<notename>[A-Ga-g]#?[0-9])").replace(r"\*", r".*?").strip()    # .*? => non greedy
                     for fname in os.listdir(dirname):
                         if LoadingInterrupt:
@@ -305,10 +326,15 @@ def ActuallyLoad():
                             info = m.groupdict()
                             midinote = int(info.get('midinote', defaultparams['midinote']))
                             velocity = int(info.get('velocity', defaultparams['velocity']))
+                            seq = int(info.get('seq', defaultparams['seq']))
                             notename = info.get('notename', defaultparams['notename'])
                             if notename:
                                 midinote = NOTES.index(notename[:-1].lower()) + (int(notename[-1])+2) * 12
-                            samples[midinote, velocity] = Sound(os.path.join(dirname, fname), midinote, velocity)
+                            # print "Loaded note %s, velocity %s, seq %s." % (midinote, velocity, seq)
+                            if (midinote, velocity) in samples:
+                                samples[midinote, velocity].append(Sound(os.path.join(dirname, fname), midinote, velocity, seq))
+                            else: 
+                                samples[midinote, velocity] = [Sound(os.path.join(dirname, fname), midinote, velocity, seq)]
                 except:
                     print "Error in definition file, skipping line %s." % (i+1)
 
@@ -318,7 +344,7 @@ def ActuallyLoad():
                 return
             file = os.path.join(dirname, "%d.wav" % midinote)
             if os.path.isfile(file):
-                samples[midinote, 127] = Sound(file, midinote, 127)
+                samples[midinote, 127] = [ Sound(file, midinote, 127, 1) ]
 
     initial_keys = set(samples.keys())
     for midinote in xrange(128):
