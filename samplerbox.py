@@ -18,9 +18,13 @@ AUDIO_DEVICE_ID = 2                     # change this number to use another soun
 SAMPLES_DIR = "."                       # The root directory containing the sample-sets. Example: "/media/" to look for samples on a USB stick / SD card
 USE_SERIALPORT_MIDI = False             # Set to True to enable MIDI IN via SerialPort (e.g. RaspberryPi's GPIO UART pins)
 USE_I2C_7SEGMENTDISPLAY = False         # Set to True to use a 7-segment display via I2C
-USE_BUTTONS = False                     # Set to True to use momentary buttons (connected to RaspberryPi's GPIO pins) to change preset
+USE_BUTTONS = True                      # Set to True to use momentary buttons (connected to RaspberryPi's GPIO pins) to change preset
 MAX_POLYPHONY = 80                      # This can be set higher, but 80 is a safe value
 
+USE_I2C_16X2DISPLAY = True				# Set to True to use a 16x2 display via I2C
+										# Define some device parameters
+I2C_16x2DISPLAY_ADDR  = 0x3f 			# I2C device address
+I2C_16x2DISPLAY_LCD_WIDTH = 16   		# Maximum characters per line
 
 #########################################
 # IMPORT
@@ -295,9 +299,11 @@ def ActuallyLoad():
     if not basename:
         print 'Preset empty: %s' % preset
         display("E%03d" % preset)
+        lcd_string('%s Preset Empty' % preset, 1)
         return
     print 'Preset loading: %s (%s)' % (preset, basename)
     display("L%03d" % preset)
+    lcd_string('%s' % (basename), 1)
 
     definitionfname = os.path.join(dirname, "definition.txt")
     if os.path.isfile(definitionfname):
@@ -366,9 +372,11 @@ def ActuallyLoad():
     if len(initial_keys) > 0:
         print 'Preset loaded: ' + str(preset)
         display("%04d" % preset)
+        lcd_string('%s' % (basename), 1)
     else:
         print 'Preset empty: ' + str(preset)
         display("E%03d" % preset)
+        lcd_string('%s Preset Empty' % (preset), 1)
 
 
 #########################################
@@ -450,13 +458,94 @@ if USE_I2C_7SEGMENTDISPLAY:
                 except:
                     pass
             time.sleep(0.002)
+            
+    def lcd_string(s):
+        pass
 
     display('----')
     time.sleep(0.5)
 
+elif USE_I2C_16X2DISPLAY:
+	
+	import smbus
+
+	# Define some device constants
+	LCD_CHR = 1 # Mode - Sending data
+	LCD_CMD = 0 # Mode - Sending command
+	
+	LCD_LINE_1 = 0x80 # LCD RAM address for the 1st line
+	LCD_LINE_2 = 0xC0 # LCD RAM address for the 2nd line
+	LCD_LINE_3 = 0x94 # LCD RAM address for the 3rd line
+	LCD_LINE_4 = 0xD4 # LCD RAM address for the 4th line
+	
+	LCD_BACKLIGHT  = 0x08  # On
+	#LCD_BACKLIGHT = 0x00  # Off
+	
+	ENABLE = 0b00000100 # Enable bit
+	
+	# Timing constants
+	E_PULSE = 0.0005
+	E_DELAY = 0.0005
+	
+	bus = smbus.SMBus(1)     # using I2C
+	
+	def lcd_init():
+		# Initialise display
+		lcd_byte(0x33,LCD_CMD) # 110011 Initialise
+		lcd_byte(0x32,LCD_CMD) # 110010 Initialise
+		lcd_byte(0x06,LCD_CMD) # 000110 Cursor move direction
+		lcd_byte(0x0C,LCD_CMD) # 001100 Display On,Cursor Off, Blink Off 
+		lcd_byte(0x28,LCD_CMD) # 101000 Data length, number of lines, font size
+		lcd_byte(0x01,LCD_CMD) # 000001 Clear display
+		time.sleep(E_DELAY)
+		
+	def lcd_byte(bits, mode):
+	  # Send byte to data pins
+	  # bits = the data
+	  # mode = 1 for data
+	  #        0 for command
+
+	  bits_high = mode | (bits & 0xF0) | LCD_BACKLIGHT
+	  bits_low = mode | ((bits<<4) & 0xF0) | LCD_BACKLIGHT
+
+	  # High bits
+	  bus.write_byte(I2C_16x2DISPLAY_ADDR, bits_high)
+	  lcd_toggle_enable(bits_high)
+
+	  # Low bits
+	  bus.write_byte(I2C_16x2DISPLAY_ADDR, bits_low)
+	  lcd_toggle_enable(bits_low)
+
+	def lcd_toggle_enable(bits):
+	  # Toggle enable
+	  time.sleep(E_DELAY)
+	  bus.write_byte(I2C_16x2DISPLAY_ADDR, (bits | ENABLE))
+	  time.sleep(E_PULSE)
+	  bus.write_byte(I2C_16x2DISPLAY_ADDR,(bits & ~ENABLE))
+	  time.sleep(E_DELAY)
+	  
+	def lcd_string(message,line):
+		# Send string to display
+
+		message = message.ljust(I2C_16x2DISPLAY_LCD_WIDTH," ")
+
+		lcd_byte(line, LCD_CMD)
+
+		for i in range(I2C_16x2DISPLAY_LCD_WIDTH):
+			lcd_byte(ord(message[i]),LCD_CHR)
+	
+	def display(s):
+		pass
+	
+	lcd_init()
+	display('----')
+	time.sleep(0.5)
+	
 else:
 
     def display(s):
+        pass
+    def lcd_string(s):
         pass
 
 
