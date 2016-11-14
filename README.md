@@ -29,6 +29,7 @@ Each time the note A1 is hit, SamplerBox will choose randomly between the differ
 This code works with Hitachi HD44780 16x2 displays with PCF8574 backpack. These are super cheap ($6.00, including shipping) on eBay. In order to get this to work, you have to set the bus address in the I2C_16x2DISPLAY_ADDR variable of samplerbox.py. The address differs depending on which version of the backpack you have: If you have the PCF8574T, the default I2C bus address is 0x27. If you have the PCF8574AT the default I2C bus address is 0x3F. 
 
 A handy set of utilities called I2CTools are used to probe the I2C bus. These can be installed with:
+
 		$ sudo apt-get install i2c-tools
 
 You can figure out the bus address for your device by doing this:
