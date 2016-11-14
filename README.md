@@ -30,7 +30,7 @@ This code works with Hitachi HD44780 16x2 displays with PCF8574 backpack. These 
 
 A handy set of utilities called I2CTools are used to probe the I2C bus. These can be installed with:
 
-		$ sudo apt-get install i2c-tools
+		sudo apt-get install i2c-tools
 
 You can figure out the bus address for your device by doing this:
 
