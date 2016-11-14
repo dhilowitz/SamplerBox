@@ -1,6 +1,40 @@
 SamplerBox
 ==========
 
+NOTE: This is a fork of Joseph Ernest's SamplerBox project with two new additions:
+
+1. Support for randomizing samples
+2. Support for 16x2 display's via I2C. 
+
+
+## Randomizing samples
+
+You can now have multiple versions of the same sample. In order to specify an alternate version of the same sample, you number them and specify the `%seq` keyword. For example, let's say you have a sample set that contains three versions of A3 as follows:
+
+		A1-1.wav
+		A1-2.wav
+		A1-3.wav
+		A1-4.wav
+		B1-1.wav
+		...
+
+You would specify a definition.txt that looks like this:
+
+	%notename-%seq.wav
+
+Each time the note A1 is hit, SamplerBox will choose randomly between the different A1 samples (making sure not to repeat any two consecutively).
+
+## 16x2 Display with backpack
+
+This code works with Hitachi HD44780 16x2 displays with PCF8574 backpack. These are super cheap ($6.00, including shipping) on eBay. In order to get this to work, you have to set the bus address in the I2C_16x2DISPLAY_ADDR variable of samplerbox.py. The address differs depending on which version of the backpack you have: If you have the PCF8574T, the default I2C bus address is 0x27. If you have the PCF8574AT the default I2C bus address is 0x3F. 
+
+Reference about these displays: 
+
+- http://www.instructables.com/id/Using-PCF8574-backpacks-with-LCD-modules-and-Ardui/
+- https://tronixlabs.com.au/display/lcd/serial-i2c-backpack-for-hd44780-compatible-lcd-modules-australia/
+
+----
+
 An open-source audio sampler project based on RaspberryPi.
 
 Website: www.samplerbox.org
