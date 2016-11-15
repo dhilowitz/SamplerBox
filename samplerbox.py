@@ -299,11 +299,12 @@ def ActuallyLoad():
     if not basename:
         print 'Preset empty: %s' % preset
         display("E%03d" % preset)
-        lcd_string('%s Preset Empty' % preset, 1)
+        lcd_string('%s Preset Empty' % preset, LCD_LINE_1)
         return
     print 'Preset loading: %s (%s)' % (preset, basename)
     display("L%03d" % preset)
-    lcd_string('%s' % (basename), 1)
+    lcd_string('%s' % (basename), LCD_LINE_1)
+    lcd_string('Loading...', LCD_LINE_2)
 
     definitionfname = os.path.join(dirname, "definition.txt")
     if os.path.isfile(definitionfname):
@@ -372,12 +373,13 @@ def ActuallyLoad():
     if len(initial_keys) > 0:
         print 'Preset loaded: ' + str(preset)
         display("%04d" % preset)
-        lcd_string('%s' % (basename), 1)
+        lcd_string('%s' % (basename), LCD_LINE_1)
+        lcd_string('', LCD_LINE_2)
     else:
         print 'Preset empty: ' + str(preset)
         display("E%03d" % preset)
-        lcd_string('%s Preset Empty' % (preset), 1)
-
+        lcd_string('%s Preset Empty' % (preset), LCD_LINE_1)
+	
 
 #########################################
 # OPEN AUDIO DEVICE
