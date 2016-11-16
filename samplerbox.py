@@ -299,12 +299,12 @@ def ActuallyLoad():
     if not basename:
         print 'Preset empty: %s' % preset
         display("E%03d" % preset)
-        lcd_string('%s Preset Empty' % preset, LCD_LINE_1)
+        lcd_string('%s Preset Empty' % preset, 1)
         return
     print 'Preset loading: %s (%s)' % (preset, basename)
     display("L%03d" % preset)
-    lcd_string('%s' % (basename), LCD_LINE_1)
-    lcd_string('Loading...', LCD_LINE_2)
+    lcd_string('%s' % (basename), 1)
+    lcd_string('Loading...', 2)
 
     definitionfname = os.path.join(dirname, "definition.txt")
     if os.path.isfile(definitionfname):
@@ -373,12 +373,12 @@ def ActuallyLoad():
     if len(initial_keys) > 0:
         print 'Preset loaded: ' + str(preset)
         display("%04d" % preset)
-        lcd_string('%s' % (basename), LCD_LINE_1)
-        lcd_string('', LCD_LINE_2)
+        lcd_string('%s' % (basename), 1)
+        lcd_string('', 2)
     else:
         print 'Preset empty: ' + str(preset)
         display("E%03d" % preset)
-        lcd_string('%s Preset Empty' % (preset), LCD_LINE_1)
+        lcd_string('%s Preset Empty' % (preset), 1)
 	
 
 #########################################
@@ -520,11 +520,21 @@ elif USE_I2C_16X2DISPLAY:
 	  time.sleep(E_DELAY)
 	  
 	def lcd_string(message,line):
+		if line == 1:
+			line_address = LCD_LINE_1
+		elif line == 2:
+			line_address = LCD_LINE_2
+		elif line == 3:
+			line_address = LCD_LINE_3
+		elif line == 4:
+			line_address = LCD_LINE_4
+		
+		
 		# Send string to display
 
 		message = message.ljust(I2C_16x2DISPLAY_LCD_WIDTH," ")
 
-		lcd_byte(line, LCD_CMD)
+		lcd_byte(line_address, LCD_CMD)
 
 		for i in range(I2C_16x2DISPLAY_LCD_WIDTH):
 			lcd_byte(ord(message[i]),LCD_CHR)
