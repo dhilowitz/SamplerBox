@@ -28,7 +28,7 @@ MAX_POLYPHONY = 80                      # This can be set higher, but 80 is a sa
 #########################################
 
 import wave
-import time
+from pygame import time
 import numpy
 import os
 import re
@@ -39,6 +39,18 @@ import struct
 import rtmidi_python as rtmidi
 import samplerbox_audio
 
+import launchpad_py
+
+try:
+    import launchpad_py as launchpad
+except ImportError:
+    try:
+        import launchpad
+    except ImportError:
+        sys.exit("error loading launchpad.py")
+
+import random
+import math
 
 #########################################
 # SLIGHT MODIFICATION OF PYTHON'S WAVE MODULE
@@ -471,14 +483,102 @@ LoadSamples()
 # MAIN LOOP
 #########################################
 
+scaleDefinition = [0,2,4,5,7,9,11]
+pressedButtons = []
+pressedNotes = []
+
+def ColorLPButtons(lp):
+    for x in range(1, 9):
+        for y in range(1, 9):
+            noteInfo = getMidiNote(x, y)
+            lpX = x - 1
+            lpY = -1 * (y - 9)
+            scaleNoteNumber = noteInfo[2]
+            if scaleNoteNumber == 0:
+                lp.LedCtrlXY(lpX, lpY, 0, 10, 30)
+            else:
+                lp.LedCtrlXY(lpX, lpY, 10, 10, 15)
+
+def getMidiNote(buttonX, buttonY):
+    base8NoteNumber = (buttonX-1) + (3 * (buttonY-1))
+    octave = int(math.floor(base8NoteNumber / 7))
+    scaleNoteNumber = base8NoteNumber % 7
+    midiNote = 48 + scaleDefinition[scaleNoteNumber] + 12*octave
+    return [midiNote, octave, scaleNoteNumber]
+
 midi_in = [rtmidi.MidiIn()]
 previous = []
+
+mode = None
+
+# create an instance
+lp = launchpad.Launchpad();
+
+# check what we have here and override lp if necessary
+if lp.Check( 0, "pro" ):
+    lp = launchpad.LaunchpadPro()
+    if lp.Open(0,"pro"):
+        print("Launchpad Pro")
+        mode = "Pro"
+        
+elif lp.Check( 0, "mk2" ):
+    lp = launchpad.LaunchpadMk2()
+    if lp.Open( 0, "mk2" ):
+        print("Launchpad Mk2")
+        mode = "Mk2"
+        
+else:
+    if lp.Open():
+        print("Launchpad Mk1/S/Mini")
+        mode = "Mk1"
+
+if mode is None:
+    print("Did not find any Launchpads, meh...")
+
+lp.ButtonFlush()
+lp.Reset()
+ColorLPButtons(lp)
+
 while True:
     for port in midi_in[0].ports:
-        if port not in previous and 'Midi Through' not in port:
+        if port not in previous and 'Midi Through' not in port and 'Launchpad' not in port:
             midi_in.append(rtmidi.MidiIn())
             midi_in[-1].callback = MidiCallback
             midi_in[-1].open_port(port)
             print 'Opened MIDI: ' + port
     previous = midi_in[0].ports
-    time.sleep(2)
+    time.wait(5)
+
+    but = lp.ButtonStateXY()
+
+    if but != []:
+        
+        daveButtonNumber = (but[0] + 1)  + ((8 - but[1]) + 1) * 8
+        noteInfo = getMidiNote(but[0] + 1, (8 - but[1]) + 1)
+        midiNote = noteInfo[0]
+        if but[2] == 127:
+            pressedButtons.append(daveButtonNumber)
+            # Question: what new notes (not buttons) are now being pressed 
+            # pseudocode 
+            # newPressedNotes = getCurrentlyPlayingNotes()
+            # newlyPressedNotes = diff between newPressedNotes and pressedNotes
+            # foreach newlyPressedNote
+            #   play the new note
+            #   get all of the grid buttons that correspond to that note
+            #   make 'em green
+
+            MidiCallback([0b10010001, midiNote, 100], None)
+        else:
+            pressedButtons.remove(daveButtonNumber)
+            # Question: what new notes (not buttons) are now no longer being pressed 
+            MidiCallback([0b10000001, midiNote, 100], None)
+
+        print(" event: ", but, but[0]+1, (8 - but[1]) + 1, midiNote )
+        message = [0, 0, 0]
+        
+        i = 0
+        
+        # Status
+        
+
+
