@@ -307,6 +307,7 @@ def ActuallyLoad():
                             midinote = int(info.get('midinote', defaultparams['midinote']))
                             velocity = int(info.get('velocity', defaultparams['velocity']))
                             notename = info.get('notename', defaultparams['notename'])
+                            
                             if notename:
                                 midinote = NOTES.index(notename[:-1].lower()) + (int(notename[-1])+2) * 12
                             samples[midinote, velocity] = Sound(os.path.join(dirname, fname), midinote, velocity)
@@ -542,14 +543,7 @@ if USE_LAUNCHPAD:
                     lpY = -1 * (newButton[1] - 9)
                     lp.LedCtrlXY(lpX, lpY, 0, 50, 0)
                 pressedNotes.append(midiNote)
-            # Question: what new notes (not buttons) are now being pressed 
-            # pseudocode 
-            # newPressedNotes = getCurrentlyPlayingNotes()
-            # newlyPressedNotes = diff between newPressedNotes and pressedNotes
-            # foreach newlyPressedNote
-            #   play the new note
-            #   get all of the grid buttons that correspond to that note
-            #   make 'em green
+            
             return
 
         # This takes 1-based coordinates with 1,1 being the lower left button
@@ -575,6 +569,7 @@ if USE_LAUNCHPAD:
                     
                     scaleNoteNumber = noteInfo[2]
                     if scaleNoteNumber == 0:
+                    #   make 'em green
                         lp.LedCtrlXY(lpX, lpY, 0, 10, 30)
                     else:
                         lp.LedCtrlXY(lpX, lpY, 10, 10, 15)
@@ -586,34 +581,36 @@ if USE_LAUNCHPAD:
         # create an instance
         lp = launchpad.Launchpad();
 
-        # check what we have here and override lp if necessary
-        if lp.Check( 0, "pro" ):
-            lp = launchpad.LaunchpadPro()
-            if lp.Open(0,"pro"):
-                print("Launchpad Pro")
-                launchpadMode = "Pro"
-                
-        elif lp.Check( 0, "mk2" ):
-            lp = launchpad.LaunchpadMk2()
-            if lp.Open( 0, "mk2" ):
-                print("Launchpad Mk2")
-                launchpadMode = "Mk2"
-                
-        else:
-            if lp.Open():
-                print("Launchpad Mk1/S/Mini")
-                launchpadMode = "Mk1"
+        while launchpadMode is None:
+            
+            # check what we have here and override lp if necessary
+            if lp.Check( 0, "pro" ):
+                lp = launchpad.LaunchpadPro()
+                if lp.Open():
+                    print("Launchpad Pro")
+                    launchpadMode = "Pro"
+                    
+            elif lp.Check( 0, "mk2" ):
+                lp = launchpad.LaunchpadMk2()
+                if lp.Open():
+                    print("Launchpad Mk2")
+                    launchpadMode = "Mk2"
+                    
+            else:
+                if lp.Open():
+                    print("Launchpad Mk1/S/Mini")
+                    launchpadMode = "Mk1"
 
-        if launchpadMode is None:
-            print("Did not find any Launchpads, meh...")
-            return
+            if launchpadMode is None:
+                print("Did not find any Launchpads, meh...")
+                
+            time.sleep(2)
 
-        if launchpadMode is not None:
-            lp.ButtonFlush()
-            lp.Reset()
-            ColorLPButtons(lp)
 
         
+        lp.ButtonFlush()
+        lp.Reset()
+        ColorLPButtons(lp)
 
         while True:
             pytime.wait(5)
