@@ -14,7 +14,7 @@
 # CONFIG
 #########################################
 
-AUDIO_DEVICE_ID = 2                     # change this number to use another soundcard
+AUDIO_DEVICE_ID = 1                     # change this number to use another soundcard
 SAMPLES_DIR = "."                       # The root directory containing the sample-sets. Example: "/media/" to look for samples on a USB stick / SD card
 USE_SERIALPORT_MIDI = False             # Set to True to enable MIDI IN via SerialPort (e.g. RaspberryPi's GPIO UART pins)
 USE_I2C_7SEGMENTDISPLAY = False         # Set to True to use a 7-segment display via I2C
@@ -499,12 +499,35 @@ def ColorLPButtons(lp):
             else:
                 lp.LedCtrlXY(lpX, lpY, 10, 10, 15)
 
-def getMidiNote(buttonX, buttonY):
-    base8NoteNumber = (buttonX-1) + (3 * (buttonY-1))
+def getMidiNote(x, y):
+    base8NoteNumber = (x-1) + (3 * (y-1))
     octave = int(math.floor(base8NoteNumber / 7))
     scaleNoteNumber = base8NoteNumber % 7
     midiNote = 48 + scaleDefinition[scaleNoteNumber] + 12*octave
     return [midiNote, octave, scaleNoteNumber]
+
+def diff(first, second):
+        second = set(second)
+        return [item for item in first if item not in second]
+
+def GetAllButtonsForMidiNote(midiNote):
+    buttons = []
+    for x in range(1, 9):
+        for y in range(1, 9):
+            noteInfo = getMidiNote(x, y)
+            if noteInfo[0] == midiNote:
+                buttons.append([x, y])
+    return buttons
+
+def GetCurrentlyPlayingMidiNotes():
+    midiNotes = []
+    for daveButtonNumber in pressedButtons:
+        x = int(math.floor(daveButtonNumber % 8))
+        y = daveButtonNumber / 8
+        noteInfo = getMidiNote(x, y)
+        if noteInfo[0] not in midiNotes:
+            midiNotes.append(noteInfo[0])
+    return midiNotes
 
 midi_in = [rtmidi.MidiIn()]
 previous = []
@@ -558,6 +581,14 @@ while True:
         midiNote = noteInfo[0]
         if but[2] == 127:
             pressedButtons.append(daveButtonNumber)
+            if midiNote not in pressedNotes:
+                MidiCallback([0b10010001, midiNote, 100], None)
+                buttons = GetAllButtonsForMidiNote(midiNote)
+                for newButton in buttons:
+                    lpX = newButton[0] - 1
+                    lpY = -1 * (newButton[1] - 9)
+                    lp.LedCtrlXY(lpX, lpY, 0, 50, 0)
+                pressedNotes.append(midiNote)
             # Question: what new notes (not buttons) are now being pressed 
             # pseudocode 
             # newPressedNotes = getCurrentlyPlayingNotes()
@@ -566,19 +597,33 @@ while True:
             #   play the new note
             #   get all of the grid buttons that correspond to that note
             #   make 'em green
+            
 
-            MidiCallback([0b10010001, midiNote, 100], None)
         else:
             pressedButtons.remove(daveButtonNumber)
+            newPressedNotes = GetCurrentlyPlayingMidiNotes()
+            newlyReleasedNotes = diff(pressedNotes, newPressedNotes)
+            print("released notes: ", newlyReleasedNotes)
+            for midiNote in newlyReleasedNotes:
+                MidiCallback([0b10000001, midiNote, 100], None)
+                buttons = GetAllButtonsForMidiNote(midiNote)
+                for newButton in buttons:
+                    noteInfo = getMidiNote(newButton[0], newButton[1])
+                    lpX = newButton[0] - 1
+                    lpY = -1 * (newButton[1] - 9)
+                    print("released buttons: ", [lpX, lpY])
+                    
+                    scaleNoteNumber = noteInfo[2]
+                    if scaleNoteNumber == 0:
+                        lp.LedCtrlXY(lpX, lpY, 0, 10, 30)
+                    else:
+                        lp.LedCtrlXY(lpX, lpY, 10, 10, 15)
+            pressedNotes = newPressedNotes
+
             # Question: what new notes (not buttons) are now no longer being pressed 
-            MidiCallback([0b10000001, midiNote, 100], None)
 
         print(" event: ", but, but[0]+1, (8 - but[1]) + 1, midiNote )
         message = [0, 0, 0]
         
         i = 0
         
-        # Status
-        
-
-
