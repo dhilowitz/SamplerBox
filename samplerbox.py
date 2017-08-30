@@ -22,6 +22,10 @@ USE_LAUNCHPAD = True                    # Set to True to add support for Launchp
 USE_BUTTONS = False                     # Set to True to use momentary buttons (connected to RaspberryPi's GPIO pins) to change preset
 MAX_POLYPHONY = 80                      # This can be set higher, but 80 is a safe value
 
+USE_I2C_16X2DISPLAY = False				# Set to True to use a 16x2 display via I2C
+										# Define some device parameters
+I2C_16x2DISPLAY_ADDR  = 0x3f 			# I2C device address
+I2C_16x2DISPLAY_LCD_WIDTH = 16   		# Maximum characters per line
 
 #########################################
 # IMPORT
@@ -39,6 +43,7 @@ from chunk import Chunk
 import struct
 import rtmidi_python as rtmidi
 import samplerbox_audio
+import random
 
 
 #########################################
@@ -125,11 +130,12 @@ class PlayingSound:
 
 class Sound:
 
-    def __init__(self, filename, midinote, velocity):
+    def __init__(self, filename, midinote, velocity, seq):
         wf = waveread(filename)
         self.fname = filename
         self.midinote = midinote
         self.velocity = velocity
+        self.seq = seq
         if wf.getloops():
             self.loop = wf.getloops()[0][0]
             self.nframes = wf.getloops()[0][1] + 2
@@ -163,6 +169,7 @@ SPEED = numpy.power(2, numpy.arange(0.0, 84.0)/12).astype(numpy.float32)
 
 samples = {}
 playingnotes = {}
+lastplayedseq = {}
 sustainplayingnotes = []
 sustain = False
 playingsounds = []
@@ -189,7 +196,7 @@ def AudioCallback(outdata, frame_count, time_info, status):
     outdata[:] = b.reshape(outdata.shape)
 
 def MidiCallback(message, time_stamp):
-    global playingnotes, sustain, sustainplayingnotes
+    global playingnotes, sustain, sustainplayingnotes, lastplayedseq
     global preset
     messagetype = message[0] >> 4
     messagechannel = (message[0] & 15) + 1
@@ -203,7 +210,24 @@ def MidiCallback(message, time_stamp):
     if messagetype == 9:    # Note on
         midinote += globaltranspose
         try:
-            playingnotes.setdefault(midinote, []).append(samples[midinote, velocity].play(midinote))
+            # Get the list of available samples for this note and velocity
+            notesamples = samples[midinote, velocity]
+            
+            # Choose a sample from the list
+            sample = random.choice (notesamples)
+            
+            # If we have no value for lastplayedseq, set it to 0
+            lastplayedseq.setdefault(midinote, 0)
+
+            # If we have more than 2 samples to work with, reject duplicates
+            if len(notesamples) >= 3:
+                while sample.seq == lastplayedseq[midinote]:
+                    sample = random.choice (notesamples)
+
+            # print "About to play midinote: %s, seq: %s" % (midinote, sample.seq)
+            playingnotes.setdefault(midinote, []).append(sample.play(midinote))
+            # Recorded the last played note
+            lastplayedseq[midinote] = sample.seq
         except:
             pass
 
@@ -276,9 +300,12 @@ def ActuallyLoad():
     if not basename:
         print 'Preset empty: %s' % preset
         display("E%03d" % preset)
+        lcd_string('%s Preset Empty' % preset, 1)
         return
     print 'Preset loading: %s (%s)' % (preset, basename)
     display("L%03d" % preset)
+    lcd_string('%s' % (basename), 1)
+    lcd_string('Loading...', 2)
 
     definitionfname = os.path.join(dirname, "definition.txt")
     if os.path.isfile(definitionfname):
@@ -291,12 +318,13 @@ def ActuallyLoad():
                     if r'%%transpose' in pattern:
                         globaltranspose = int(pattern.split('=')[1].strip())
                         continue
-                    defaultparams = {'midinote': '0', 'velocity': '127', 'notename': ''}
+                    defaultparams = {'midinote': '0', 'velocity': '127', 'notename': '', 'seq': 1}
                     if len(pattern.split(',')) > 1:
                         defaultparams.update(dict([item.split('=') for item in pattern.split(',', 1)[1].replace(' ', '').replace('%', '').split(',')]))
                     pattern = pattern.split(',')[0]
                     pattern = re.escape(pattern.strip())
                     pattern = pattern.replace(r"\%midinote", r"(?P<midinote>\d+)").replace(r"\%velocity", r"(?P<velocity>\d+)")\
+                                     .replace(r"\%seq", r"(?P<seq>\d+)")\
                                      .replace(r"\%notename", r"(?P<notename>[A-Ga-g]#?[0-9])").replace(r"\*", r".*?").strip()    # .*? => non greedy
                     for fname in os.listdir(dirname):
                         if LoadingInterrupt:
@@ -306,11 +334,16 @@ def ActuallyLoad():
                             info = m.groupdict()
                             midinote = int(info.get('midinote', defaultparams['midinote']))
                             velocity = int(info.get('velocity', defaultparams['velocity']))
+                            seq = int(info.get('seq', defaultparams['seq']))
                             notename = info.get('notename', defaultparams['notename'])
                             
                             if notename:
                                 midinote = NOTES.index(notename[:-1].lower()) + (int(notename[-1])+2) * 12
-                            samples[midinote, velocity] = Sound(os.path.join(dirname, fname), midinote, velocity)
+                            # print "Loaded note %s, velocity %s, seq %s." % (midinote, velocity, seq)
+                            if (midinote, velocity) in samples:
+                                samples[midinote, velocity].append(Sound(os.path.join(dirname, fname), midinote, velocity, seq))
+                            else: 
+                                samples[midinote, velocity] = [Sound(os.path.join(dirname, fname), midinote, velocity, seq)]
                 except:
                     print "Error in definition file, skipping line %s." % (i+1)
 
@@ -320,7 +353,7 @@ def ActuallyLoad():
                 return
             file = os.path.join(dirname, "%d.wav" % midinote)
             if os.path.isfile(file):
-                samples[midinote, 127] = Sound(file, midinote, 127)
+                samples[midinote, 127] = [ Sound(file, midinote, 127, 1) ]
 
     initial_keys = set(samples.keys())
     for midinote in xrange(128):
@@ -342,10 +375,13 @@ def ActuallyLoad():
     if len(initial_keys) > 0:
         print 'Preset loaded: ' + str(preset)
         display("%04d" % preset)
+        lcd_string('%s' % (basename), 1)
+        lcd_string('', 2)
     else:
         print 'Preset empty: ' + str(preset)
         display("E%03d" % preset)
-
+        lcd_string('%s Preset Empty' % (preset), 1)
+	
 
 #########################################
 # OPEN AUDIO DEVICE
@@ -419,13 +455,104 @@ if USE_I2C_7SEGMENTDISPLAY:
                 except:
                     pass
             time.sleep(0.002)
+            
+    def lcd_string(s, line):
+        pass
 
     display('----')
     time.sleep(0.5)
 
+elif USE_I2C_16X2DISPLAY:
+	
+	import smbus
+
+	# Define some device constants
+	LCD_CHR = 1 # Mode - Sending data
+	LCD_CMD = 0 # Mode - Sending command
+	
+	LCD_LINE_1 = 0x80 # LCD RAM address for the 1st line
+	LCD_LINE_2 = 0xC0 # LCD RAM address for the 2nd line
+	LCD_LINE_3 = 0x94 # LCD RAM address for the 3rd line
+	LCD_LINE_4 = 0xD4 # LCD RAM address for the 4th line
+	
+	LCD_BACKLIGHT  = 0x08  # On
+	#LCD_BACKLIGHT = 0x00  # Off
+	
+	ENABLE = 0b00000100 # Enable bit
+	
+	# Timing constants
+	E_PULSE = 0.0005
+	E_DELAY = 0.0005
+	
+	bus = smbus.SMBus(1)     # using I2C
+	
+	def lcd_init():
+		# Initialise display
+		lcd_byte(0x33,LCD_CMD) # 110011 Initialise
+		lcd_byte(0x32,LCD_CMD) # 110010 Initialise
+		lcd_byte(0x06,LCD_CMD) # 000110 Cursor move direction
+		lcd_byte(0x0C,LCD_CMD) # 001100 Display On,Cursor Off, Blink Off 
+		lcd_byte(0x28,LCD_CMD) # 101000 Data length, number of lines, font size
+		lcd_byte(0x01,LCD_CMD) # 000001 Clear display
+		time.sleep(E_DELAY)
+		
+	def lcd_byte(bits, mode):
+	  # Send byte to data pins
+	  # bits = the data
+	  # mode = 1 for data
+	  #        0 for command
+
+	  bits_high = mode | (bits & 0xF0) | LCD_BACKLIGHT
+	  bits_low = mode | ((bits<<4) & 0xF0) | LCD_BACKLIGHT
+
+	  # High bits
+	  bus.write_byte(I2C_16x2DISPLAY_ADDR, bits_high)
+	  lcd_toggle_enable(bits_high)
+
+	  # Low bits
+	  bus.write_byte(I2C_16x2DISPLAY_ADDR, bits_low)
+	  lcd_toggle_enable(bits_low)
+
+	def lcd_toggle_enable(bits):
+	  # Toggle enable
+	  time.sleep(E_DELAY)
+	  bus.write_byte(I2C_16x2DISPLAY_ADDR, (bits | ENABLE))
+	  time.sleep(E_PULSE)
+	  bus.write_byte(I2C_16x2DISPLAY_ADDR,(bits & ~ENABLE))
+	  time.sleep(E_DELAY)
+	  
+	def lcd_string(message,line):
+		if line == 1:
+			line_address = LCD_LINE_1
+		elif line == 2:
+			line_address = LCD_LINE_2
+		elif line == 3:
+			line_address = LCD_LINE_3
+		elif line == 4:
+			line_address = LCD_LINE_4
+		
+		
+		# Send string to display
+
+		message = message.ljust(I2C_16x2DISPLAY_LCD_WIDTH," ")
+
+		lcd_byte(line_address, LCD_CMD)
+
+		for i in range(I2C_16x2DISPLAY_LCD_WIDTH):
+			lcd_byte(ord(message[i]),LCD_CHR)
+	
+	def display(s):
+		pass
+	
+	lcd_init()
+	display('----')
+	time.sleep(0.5)
+	
 else:
 
     def display(s):
+        pass
+    def lcd_string(s, line):
         pass
 
 
@@ -648,7 +775,6 @@ LoadSamples()
 
 midi_in = [rtmidi.MidiIn()]
 previous = []
-
 while True:
     for port in midi_in[0].ports:
         if port not in previous and 'Midi Through' not in port and 'Launchpad' not in port:
