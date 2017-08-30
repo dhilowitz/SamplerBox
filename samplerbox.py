@@ -465,7 +465,7 @@ if USE_SERIALPORT_MIDI:
 #########################################
 
 if USE_LAUNCHPAD:
-    import launchpad_py
+    
     from pygame import time as pytime
 
     try:
@@ -581,31 +581,32 @@ if USE_LAUNCHPAD:
         # create an instance
         lp = launchpad.Launchpad();
 
-        # while launchpadMode is None:
+        while launchpadMode is None:
+            lp.ListAll()
             
-        # check what we have here and override lp if necessary
-        if lp.Check( 0, "pro" ):
-            lp = launchpad.LaunchpadPro()
-            if lp.Open():
-                print("Launchpad Pro")
-                launchpadMode = "Pro"
-                
-        elif lp.Check( 0, "mk2" ):
-            lp = launchpad.LaunchpadMk2()
-            if lp.Open():
-                print("Launchpad Mk2")
-                launchpadMode = "Mk2"
-                
-        else:
-            if lp.Open():
-                print("Launchpad Mk1/S/Mini")
-                launchpadMode = "Mk1"
+            # check what we have here and override lp if necessary
+            if lp.Check( 0, "pro" ):
+                lp = launchpad.LaunchpadPro()
+                if lp.Open():
+                    print("Launchpad Pro")
+                    launchpadMode = "Pro"
+                    
+            elif lp.Check( 0, "mk2" ):
+                lp = launchpad.LaunchpadMk2()
+                if lp.Open():
+                    print("Launchpad Mk2")
+                    launchpadMode = "Mk2"
+                    
+            else:
+                if lp.Open():
+                    print("Launchpad Mk1/S/Mini")
+                    launchpadMode = "Mk1"
 
-        if launchpadMode is None:
-            print("Did not find any Launchpads, meh...")
-            return
-                
-            # time.sleep(2)
+            if launchpadMode is None:
+                print("Did not find any Launchpads, meh...")
+                # return
+                    
+                time.sleep(2)
 
 
         
