@@ -612,17 +612,33 @@ if USE_LAUNCHPAD:
     def LaunchpadCallback():
         scaleDefinition = [0,2,4,5,7,9,11]
 
+        def ColorNoteButton(x, y, rootNote=False, pressed=False):
+            noteColors = { 
+                "Mk1": { "pressed": [0, 63],    "root": [3, 0],     "default": [1, 1]}, 
+                "Mk2": { "pressed": [0, 50, 0], "root": [0, 10, 30], "default": [10, 10, 15]}
+            }
+
+            lpX = x - 1
+            lpY = -1 * (y - 9)
+
+            if pressed:
+                key = "pressed"
+            elif rootNote:
+                key = "root"
+            else:
+                key = "default"
+
+            if launchpadModel == "Mk1":
+                lp.LedCtrlXY(lpX, lpY, noteColors[launchpadModel][key][0], noteColors[launchpadModel][key][1])
+            else:
+                lp.LedCtrlXY(lpX, lpY, noteColors[launchpadModel][key][0], noteColors[launchpadModel][key][1], noteColors[launchpadModel][key][2])
+
         def ColorLPButtons(lp):
             for x in range(1, 9):
                 for y in range(1, 9):
                     noteInfo = GetNoteInfo(x, y)
-                    lpX = x - 1
-                    lpY = -1 * (y - 9)
                     scaleNoteNumber = noteInfo[2]
-                    if scaleNoteNumber == 0:
-                        lp.LedCtrlXY(lpX, lpY, 0, 10, 30)
-                    else:
-                        lp.LedCtrlXY(lpX, lpY, 10, 10, 15)
+                    ColorNoteButton(x, y, (scaleNoteNumber == 0), (noteInfo[0] in pressedNotes))
 
         def GetNoteInfo(x, y):
             base8NoteNumber = (x-1) + (3 * (y-1))
@@ -657,25 +673,24 @@ if USE_LAUNCHPAD:
         # This takes 1-based coordinates with 1,1 being the lower left button
         def LaunchpadButtonPressed(x, y):
             global pressedNotes, pressedButtons
+
             buttonNumber = x  + (y * 8)
             noteInfo = GetNoteInfo(x, y)
             midiNote = noteInfo[0]
+            scaleNoteNumber = noteInfo[2]
 
             pressedButtons.append(buttonNumber)
             if midiNote not in pressedNotes:
                 MidiCallback([0b10010001, midiNote, 100], None)
                 buttons = GetAllButtonsForMidiNote(midiNote)
                 for newButton in buttons:
-                    lpX = newButton[0] - 1
-                    lpY = -1 * (newButton[1] - 9)
-                    lp.LedCtrlXY(lpX, lpY, 0, 50, 0)
+                    ColorNoteButton(newButton[0], newButton[1], (scaleNoteNumber == 0), True)
                 pressedNotes.append(midiNote)
-            
             return
 
         # This takes 1-based coordinates with 1,1 being the lower left button
         def LaunchpadButtonReleased(x, y):
-            global pressedNotes
+            global pressedNotes, pressedButtons
             buttonNumber = x  + (y * 8)
             noteInfo = GetNoteInfo(x, y)
             midiNote = noteInfo[0]
@@ -690,46 +705,38 @@ if USE_LAUNCHPAD:
                 buttons = GetAllButtonsForMidiNote(midiNote)
                 for newButton in buttons:
                     noteInfo = GetNoteInfo(newButton[0], newButton[1])
-                    lpX = newButton[0] - 1
-                    lpY = -1 * (newButton[1] - 9)
-                    # print("released buttons: ", [lpX, lpY])
-                    
                     scaleNoteNumber = noteInfo[2]
-                    if scaleNoteNumber == 0:
-                    #   make 'em green
-                        lp.LedCtrlXY(lpX, lpY, 0, 10, 30)
-                    else:
-                        lp.LedCtrlXY(lpX, lpY, 10, 10, 15)
+                    ColorNoteButton(newButton[0], newButton[1], (scaleNoteNumber == 0))
             pressedNotes = newPressedNotes
             return
 
-        launchpadMode = None
+        launchpadModel = None
 
         # create an instance
         lp = launchpad.Launchpad();
 
-        while launchpadMode is None:
-            lp.ListAll()
+        while launchpadModel is None:
+            # lp.ListAll()
             
             # check what we have here and override lp if necessary
             if lp.Check( 0, "pro" ):
                 lp = launchpad.LaunchpadPro()
                 if lp.Open():
                     print("Launchpad Pro")
-                    launchpadMode = "Pro"
+                    launchpadModel = "Pro"
                     
             elif lp.Check( 0, "mk2" ):
                 lp = launchpad.LaunchpadMk2()
                 if lp.Open():
                     print("Launchpad Mk2")
-                    launchpadMode = "Mk2"
+                    launchpadModel = "Mk2"
                     
             else:
                 if lp.Open():
                     print("Launchpad Mk1/S/Mini")
-                    launchpadMode = "Mk1"
+                    launchpadModel = "Mk1"
 
-            if launchpadMode is None:
+            if launchpadModel is None:
                 print("Did not find any Launchpads, meh...")
                 # return
                     
@@ -741,18 +748,47 @@ if USE_LAUNCHPAD:
         lp.Reset()
         ColorLPButtons(lp)
 
+        randomButton = None
+        randomButtonCounter = 0
+        randomButtonModeEnabled = False
+
         while True:
             pytime.wait(5)
             but = lp.ButtonStateXY()
 
+            if randomButtonModeEnabled:
+                if randomButtonCounter > 30:
+                    if randomButton:
+                        LaunchpadButtonReleased(randomButton[0], randomButton[1])  
+                        randomButton = None
+                    # Make a new randomButton
+                    randomButton = [random.randint(1,8), random.randint(1,8)]
+                    LaunchpadButtonPressed(randomButton[0], randomButton[1])
+                    randomButtonCounter = 0
+                randomButtonCounter = randomButtonCounter + 1
+
             if but != []:
                 if (but[0] < 8) and (but[1] != 0):
-                    if but[2] == 127:
+                    if but[2] == 127 or but[2] == True:
                         LaunchpadButtonPressed(but[0] + 1, (8 - but[1]) + 1)
-                    elif but[2] == 0:
+                    elif but[2] == 0 or but[2] == False:
                         LaunchpadButtonReleased(but[0] + 1, (8 - but[1]) + 1)
+                elif but[0] == 8 and but[1] == 8 and but[2] :
+                    # Clear screen
+                    lp.Reset()
+                elif but[0] == 8 and but[1] == 7:
+                    # Random button mode
+                    if but[2] == 127 or but[2] == True:
+                        randomButtonModeEnabled = True
+                        randomButton = None
+                        randomButtonCounter = 0
+                    elif but[2] == 0 or but[2] == False:
+                        randomButtonModeEnabled = False
+                        if randomButton:
+                            LaunchpadButtonReleased(randomButton[0], randomButton[1])
+                            randomButton = None
                 
-                # print(" event: ", but, but[0]+1, (8 - but[1]) + 1)
+                print(" event: ", but, but[0]+1, (8 - but[1]) + 1)
 
     LaunchpadThread = threading.Thread(target=LaunchpadCallback)
     LaunchpadThread.daemon = True
