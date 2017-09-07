@@ -732,10 +732,11 @@ if USE_LAUNCHPAD:
             return buttons
 
         def GetCurrentlyPlayingMidiNotes():
+            global pressedButtons
             midiNotes = []
             for buttonNumber in pressedButtons:
-                x = int(math.floor(buttonNumber % 8))
-                y = buttonNumber / 8
+                x = int(math.floor(buttonNumber % 8)) + 1
+                y = (buttonNumber / 8) + 1
                 noteInfo = GetNoteInfo(x, y)
                 if noteInfo[0] not in midiNotes:
                     midiNotes.append(noteInfo[0])
@@ -745,40 +746,54 @@ if USE_LAUNCHPAD:
         def LaunchpadNoteButtonPressed(x, y):
             global pressedNotes, pressedButtons
 
-            buttonNumber = x  + (y * 8)
+            buttonNumber = (x-1)  + ((y-1) * 8)
             noteInfo = GetNoteInfo(x, y)
             midiNote = noteInfo[0]
             scaleNoteNumber = noteInfo[2]
 
             pressedButtons.append(buttonNumber)
+
+            MidiCallback([0b10010001, midiNote, 100], None)
             if midiNote not in pressedNotes:
-                MidiCallback([0b10010001, midiNote, 100], None)
                 buttons = GetAllButtonsForMidiNote(midiNote)
                 for newButton in buttons:
                     ColorNoteButton(newButton[0], newButton[1], (scaleNoteNumber == 0), True)
                 pressedNotes.append(midiNote)
+            # print "Button Pressed", buttonNumber, "with MIDI note number", midiNote
+            print "Pressed Notes", pressedNotes
             return
 
         # This takes 1-based coordinates with 1,1 being the lower left button
         def LaunchpadButtonReleased(x, y):
             global pressedNotes, pressedButtons
-            buttonNumber = x  + (y * 8)
+            buttonNumber = (x-1)  + ((y-1) * 8)
             noteInfo = GetNoteInfo(x, y)
             midiNote = noteInfo[0]
 
             # Question: what new notes (not buttons) are now no longer being pressed 
             pressedButtons.remove(buttonNumber)
+            
             newPressedNotes = GetCurrentlyPlayingMidiNotes()
-            newlyReleasedNotes = diff(pressedNotes, newPressedNotes)
-            # print("released notes: ", newlyReleasedNotes)
-            for midiNote in newlyReleasedNotes:
+
+            if midiNote not in newPressedNotes:
                 MidiCallback([0b10000001, midiNote, 100], None)
                 buttons = GetAllButtonsForMidiNote(midiNote)
                 for newButton in buttons:
                     noteInfo = GetNoteInfo(newButton[0], newButton[1])
                     scaleNoteNumber = noteInfo[2]
                     ColorNoteButton(newButton[0], newButton[1], (scaleNoteNumber == 0))
+
+            # newlyReleasedNotes = diff(pressedNotes, newPressedNotes)
+            # print("released notes: ", newlyReleasedNotes)
+            # for newlyReleaseMidiNote in newlyReleasedNotes:
+            #     MidiCallback([0b10000001, newlyReleaseMidiNote, 100], None)
+            #     buttons = GetAllButtonsForMidiNote(newlyReleaseMidiNote)
+            #     for newButton in buttons:
+            #         noteInfo = GetNoteInfo(newButton[0], newButton[1])
+            #         scaleNoteNumber = noteInfo[2]
+            #         ColorNoteButton(newButton[0], newButton[1], (scaleNoteNumber == 0))
             pressedNotes = newPressedNotes
+            print "Pressed Notes", newPressedNotes
             return
 
         launchpadModel = None
