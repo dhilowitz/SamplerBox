@@ -610,17 +610,61 @@ if USE_LAUNCHPAD:
     pressedButtons = []
 
     def LaunchpadCallback():
-        scaleDefinition = [0,2,4,5,7,9,11]
+        global preset
+
+        MUSICAL_MODES = {
+            'Major':            [0, 2, 4, 5, 7, 9, 11],
+            'Minor':            [0, 2, 3, 5, 7, 8, 10],
+            'Dorian':           [0, 2, 3, 5, 7, 9, 10],
+            'Mixolydian':       [0, 2, 4, 5, 7, 9, 10],
+            'Lydian':           [0, 2, 4, 6, 7, 9, 11],
+            'Phrygian':         [0, 1, 3, 5, 7, 8, 10],
+            'Locrian':          [0, 1, 3, 5, 6, 8, 10],
+            'Diminished':       [0, 1, 3, 4, 6, 7, 9, 10],
+
+            'Whole-half':       [0, 2, 3, 5, 6, 8, 9, 11],
+            'Whole Tone':       [0, 2, 4, 6, 8, 10],
+            'Minor Blues':      [0, 3, 5, 6, 7, 10],
+            'Minor Pentatonic': [0, 3, 5, 7, 10],
+            'Major Pentatonic': [0, 2, 4, 7, 9],
+            'Harmonic Minor':   [0, 2, 3, 5, 7, 8, 11],
+            'Melodic Minor':    [0, 2, 3, 5, 7, 9, 11],
+            'Super Locrian':    [0, 1, 3, 4, 6, 8, 10],
+
+            'Bhairav':          [0, 1, 4, 5, 7, 8, 11],
+            'Hungarian Minor':  [0, 2, 3, 6, 7, 8, 11],
+            'Minor Gypsy':      [0, 1, 4, 5, 7, 8, 10],
+            'Hirojoshi':        [0, 2, 3, 7, 8],
+            'In-Sen':           [0, 1, 5, 7, 10],
+            'Iwato':            [0, 1, 5, 6, 10],
+            'Kumoi':            [0, 2, 3, 7, 9],
+            'Pelog':            [0, 1, 3, 4, 7, 8],
+
+            'Spanish':          [0, 1, 3, 4, 5, 6, 8, 10],
+            'IonEol':           [0, 2, 3, 4, 5, 7, 8, 9, 10, 11]
+        }
+        gridMusicalMode = 'Major'
+        gridOctave = 3
+        gridKey = 0
+        launchpadMode = "notes" # possible values are "notes" and "settings"
+        noteColors = { 
+            "Mk1": { 
+                "pressed": [0, 63],    
+                "root": [3, 0],      
+                "default": [1, 1],
+                "settingsKeyOff": [0, 4],
+                "settingsKeyOn":  [0, 20],
+            }, 
+            "Mk2": { 
+                "pressed": [0, 50, 0], 
+                "root": [0, 10, 30], 
+                "default": [10, 10, 15],
+                "settingsKeyOff": [0, 4, 0],
+                "settingsKeyOn":  [0, 20, 0],
+            }
+        }
 
         def ColorNoteButton(x, y, rootNote=False, pressed=False):
-            noteColors = { 
-                "Mk1": { "pressed": [0, 63],    "root": [3, 0],     "default": [1, 1]}, 
-                "Mk2": { "pressed": [0, 50, 0], "root": [0, 10, 30], "default": [10, 10, 15]}
-            }
-
-            lpX = x - 1
-            lpY = -1 * (y - 9)
-
             if pressed:
                 key = "pressed"
             elif rootNote:
@@ -628,24 +672,51 @@ if USE_LAUNCHPAD:
             else:
                 key = "default"
 
+            ColorLPButton(x, y, key)
+
+        def ColorLPButton(x, y, buttonType):
+            lpX = x - 1
+            lpY = -1 * (y - 9)
+
             if launchpadModel == "Mk1":
-                lp.LedCtrlXY(lpX, lpY, noteColors[launchpadModel][key][0], noteColors[launchpadModel][key][1])
+                lp.LedCtrlXY(lpX, lpY, noteColors[launchpadModel][buttonType][0], noteColors[launchpadModel][buttonType][1])
             else:
-                lp.LedCtrlXY(lpX, lpY, noteColors[launchpadModel][key][0], noteColors[launchpadModel][key][1], noteColors[launchpadModel][key][2])
+                lp.LedCtrlXY(lpX, lpY, noteColors[launchpadModel][buttonType][0], noteColors[launchpadModel][buttonType][1], noteColors[launchpadModel][buttonType][2])
+
 
         def ColorLPButtons(lp):
-            for x in range(1, 9):
-                for y in range(1, 9):
-                    noteInfo = GetNoteInfo(x, y)
-                    scaleNoteNumber = noteInfo[2]
-                    ColorNoteButton(x, y, (scaleNoteNumber == 0), (noteInfo[0] in pressedNotes))
+            if launchpadMode is "notes":
+                for x in range(1, 9):
+                    for y in range(1, 9):
+                        noteInfo = GetNoteInfo(x, y)
+                        scaleNoteNumber = noteInfo[2]
+                        ColorNoteButton(x, y, (scaleNoteNumber == 0), (noteInfo[0] in pressedNotes))
+            elif launchpadMode is "settings":
+                ColorLPButton(1, 6, "settingsKeyOn" if gridKey is 0 else "settingsKeyOff")                
+                ColorLPButton(1, 7, "settingsKeyOn" if gridKey is 1 else "settingsKeyOff")                
+                ColorLPButton(2, 6, "settingsKeyOn" if gridKey is 2 else "settingsKeyOff")                
+                ColorLPButton(2, 7, "settingsKeyOn" if gridKey is 3 else "settingsKeyOff")                
+                ColorLPButton(3, 6, "settingsKeyOn" if gridKey is 4 else "settingsKeyOff")
+                ColorLPButton(4, 6, "settingsKeyOn" if gridKey is 5 else "settingsKeyOff")
+                ColorLPButton(4, 7, "settingsKeyOn" if gridKey is 6 else "settingsKeyOff")
+                ColorLPButton(5, 6, "settingsKeyOn" if gridKey is 7 else "settingsKeyOff")
+                ColorLPButton(5, 7, "settingsKeyOn" if gridKey is 8 else "settingsKeyOff")
+                ColorLPButton(6, 6, "settingsKeyOn" if gridKey is 9 else "settingsKeyOff")
+                ColorLPButton(6, 7, "settingsKeyOn" if gridKey is 10 else "settingsKeyOff")
+                ColorLPButton(7, 6, "settingsKeyOn" if gridKey is 11 else "settingsKeyOff")
+
+            ColorLPButton(1, 9, "pressed") # sample down
+            ColorLPButton(2, 9, "pressed") # sample up
+            ColorLPButton(9, 6, "pressed") # octave up
+            ColorLPButton(9, 5, "pressed") # octave down
+            ColorLPButton(9, 7, "pressed") # settings
 
         def GetNoteInfo(x, y):
             base8NoteNumber = (x-1) + (3 * (y-1))
-            octave = int(math.floor(base8NoteNumber / 7))
+            noteOctave = int(math.floor(base8NoteNumber / 7))
             scaleNoteNumber = base8NoteNumber % 7
-            midiNote = 48 + scaleDefinition[scaleNoteNumber] + 12 * octave
-            return [midiNote, octave, scaleNoteNumber]
+            midiNote = ((gridOctave + 1) * 12) + gridKey + MUSICAL_MODES[gridMusicalMode][scaleNoteNumber] + 12 * noteOctave
+            return [midiNote, noteOctave, scaleNoteNumber]
 
         def diff(first, second):
                 second = set(second)
@@ -671,7 +742,7 @@ if USE_LAUNCHPAD:
             return midiNotes
 
         # This takes 1-based coordinates with 1,1 being the lower left button
-        def LaunchpadButtonPressed(x, y):
+        def LaunchpadNoteButtonPressed(x, y):
             global pressedNotes, pressedButtons
 
             buttonNumber = x  + (y * 8)
@@ -763,30 +834,61 @@ if USE_LAUNCHPAD:
                         randomButton = None
                     # Make a new randomButton
                     randomButton = [random.randint(1,8), random.randint(1,8)]
-                    LaunchpadButtonPressed(randomButton[0], randomButton[1])
+                    LaunchpadNoteButtonPressed(randomButton[0], randomButton[1])
                     randomButtonCounter = 0
                 randomButtonCounter = randomButtonCounter + 1
 
             if but != []:
-                if (but[0] < 8) and (but[1] != 0):
-                    if but[2] == 127 or but[2] == True:
-                        LaunchpadButtonPressed(but[0] + 1, (8 - but[1]) + 1)
-                    elif but[2] == 0 or but[2] == False:
-                        LaunchpadButtonReleased(but[0] + 1, (8 - but[1]) + 1)
-                elif but[0] == 8 and but[1] == 8 and but[2] :
-                    # Clear screen
-                    lp.Reset()
-                elif but[0] == 8 and but[1] == 7:
-                    # Random button mode
-                    if but[2] == 127 or but[2] == True:
-                        randomButtonModeEnabled = True
-                        randomButton = None
-                        randomButtonCounter = 0
-                    elif but[2] == 0 or but[2] == False:
-                        randomButtonModeEnabled = False
-                        if randomButton:
-                            LaunchpadButtonReleased(randomButton[0], randomButton[1])
+                if launchpadMode is "notes":
+                    if (but[0] < 8) and (but[1] != 0):
+                        if but[2] == 127 or but[2] == True:
+                            LaunchpadNoteButtonPressed(but[0] + 1, (8 - but[1]) + 1)
+                        elif but[2] == 0 or but[2] == False:
+                            LaunchpadButtonReleased(but[0] + 1, (8 - but[1]) + 1)
+                    elif but[0] == 8 and but[1] == 8 and (but[2] == 127 or but[2] == True):
+                        # Clear screen
+                        lp.Reset()
+                    elif but[0] == 8 and but[1] == 7:
+                        # Random button mode
+                        if but[2] == 127 or but[2] == True:
+                            randomButtonModeEnabled = True
                             randomButton = None
+                            randomButtonCounter = 0
+                        elif but[2] == 0 or but[2] == False:
+                            randomButtonModeEnabled = False
+                            if randomButton:
+                                LaunchpadButtonReleased(randomButton[0], randomButton[1])
+                                randomButton = None
+                if launchpadMode is "settings":
+                    if (((0 <= but[0] < 7) and (but[1] == 3)) or ((but[0] in [0, 1, 3, 4, 5]) and but[1] == 2)) and (but[2] == 127 or but[2] == True):
+                        gridKey = MUSICAL_MODES['Major'][but[0]] + (but[1] == 2)
+                        ColorLPButtons(lp)
+                        print "Key is ", NOTES[gridKey]
+                if but[0] == 0 and but[1] == 0 and (but[2] == 127 or but[2] == True):
+                    preset -= 1
+                    if preset < 0:
+                        preset = 127
+                    LoadSamples()
+                elif but[0] == 1 and but[1] == 0 and (but[2] == 127 or but[2] == True):
+                    preset += 1
+                    if preset > 127:
+                        preset = 0
+                    LoadSamples()
+                elif but[0] == 8 and but[1] == 2:
+                    if but[2] == 127 or but[2] == True:
+                        launchpadMode = "settings"
+                        lp.Reset()
+                        ColorLPButtons(lp)
+                    elif but[2] == 0 or but[2] == False:
+                        launchpadMode = "notes"
+                        ColorLPButtons(lp)
+                elif but[0] == 8 and but[1] == 3 and (but[2] == 127 or but[2] == True):
+                    if gridOctave < 8:
+                        gridOctave += 1
+                elif but[0] == 8 and but[1] == 4 and (but[2] == 127 or but[2] == True):
+                    if gridOctave > 0:
+                        gridOctave -= 1
+                
                 
                 print(" event: ", but, but[0]+1, (8 - but[1]) + 1)
 
