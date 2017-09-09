@@ -678,10 +678,13 @@ if USE_LAUNCHPAD:
             lpX = x - 1
             lpY = -1 * (y - 9)
 
+
             if launchpadModel == "Mk1":
+                colorSet = "Mk1"
                 lp.LedCtrlXY(lpX, lpY, noteColors[launchpadModel][buttonType][0], noteColors[launchpadModel][buttonType][1])
             else:
-                lp.LedCtrlXY(lpX, lpY, noteColors[launchpadModel][buttonType][0], noteColors[launchpadModel][buttonType][1], noteColors[launchpadModel][buttonType][2])
+                colorSet = "Mk2"
+                lp.LedCtrlXY(lpX, lpY, noteColors[colorSet][buttonType][0], noteColors[colorSet][buttonType][1], noteColors[colorSet][buttonType][2])
 
 
         def ColorLPButtons(lp):
@@ -743,7 +746,7 @@ if USE_LAUNCHPAD:
             return midiNotes
 
         # This takes 1-based coordinates with 1,1 being the lower left button
-        def LaunchpadNoteButtonPressed(x, y):
+        def LaunchpadNoteButtonPressed(x, y, velocity):
             global pressedNotes, pressedButtons
 
             buttonNumber = (x-1)  + ((y-1) * 8)
@@ -753,14 +756,14 @@ if USE_LAUNCHPAD:
 
             pressedButtons.append(buttonNumber)
 
-            MidiCallback([0b10010001, midiNote, 100], None)
+            MidiCallback([0b10010001, midiNote, velocity], None)
             if midiNote not in pressedNotes:
                 buttons = GetAllButtonsForMidiNote(midiNote)
                 for newButton in buttons:
                     ColorNoteButton(newButton[0], newButton[1], (scaleNoteNumber == 0), True)
                 pressedNotes.append(midiNote)
             # print "Button Pressed", buttonNumber, "with MIDI note number", midiNote
-            print "Pressed Notes", pressedNotes
+            # print "Pressed Notes", pressedNotes
             return
 
         # This takes 1-based coordinates with 1,1 being the lower left button
@@ -776,7 +779,7 @@ if USE_LAUNCHPAD:
             newPressedNotes = GetCurrentlyPlayingMidiNotes()
 
             if midiNote not in newPressedNotes:
-                MidiCallback([0b10000001, midiNote, 100], None)
+                MidiCallback([0b10000001, midiNote, 0], None)
                 buttons = GetAllButtonsForMidiNote(midiNote)
                 for newButton in buttons:
                     noteInfo = GetNoteInfo(newButton[0], newButton[1])
@@ -793,7 +796,7 @@ if USE_LAUNCHPAD:
             #         scaleNoteNumber = noteInfo[2]
             #         ColorNoteButton(newButton[0], newButton[1], (scaleNoteNumber == 0))
             pressedNotes = newPressedNotes
-            print "Pressed Notes", newPressedNotes
+            # print "Pressed Notes", newPressedNotes
             return
 
         launchpadModel = None
@@ -815,8 +818,7 @@ if USE_LAUNCHPAD:
                 lp = launchpad.LaunchpadMk2()
                 if lp.Open():
                     print("Launchpad Mk2")
-                    launchpadModel = "Mk2"
-                    
+                    launchpadModel = "Mk2"    
             else:
                 if lp.Open():
                     print("Launchpad Mk1/S/Mini")
@@ -849,23 +851,30 @@ if USE_LAUNCHPAD:
                         randomButton = None
                     # Make a new randomButton
                     randomButton = [random.randint(1,8), random.randint(1,8)]
-                    LaunchpadNoteButtonPressed(randomButton[0], randomButton[1])
+                    LaunchpadNoteButtonPressed(randomButton[0], randomButton[1], 100)
                     randomButtonCounter = 0
                 randomButtonCounter = randomButtonCounter + 1
 
             if but != []:
+                x = but[0] + 1
+                y = (8 - but[1]) + 1
+                pressed = (but[2] > 0) or (but[2] == True)
+
                 if launchpadMode is "notes":
                     if (but[0] < 8) and (but[1] != 0):
-                        if but[2] == 127 or but[2] == True:
-                            LaunchpadNoteButtonPressed(but[0] + 1, (8 - but[1]) + 1)
-                        elif but[2] == 0 or but[2] == False:
-                            LaunchpadButtonReleased(but[0] + 1, (8 - but[1]) + 1)
+                        if pressed:
+                            velocity = 100
+                            if launchpadModel is "Pro":
+                                velocity = but[2]
+                            LaunchpadNoteButtonPressed(x, y, velocity)
+                        else:
+                            LaunchpadButtonReleased(x, y)
                     elif but[0] == 8 and but[1] == 8 and (but[2] == 127 or but[2] == True):
                         # Clear screen
                         lp.Reset()
                     elif but[0] == 8 and but[1] == 7:
                         # Random button mode
-                        if but[2] == 127 or but[2] == True:
+                        if but[2] > 0 or but[2] == True:
                             randomButtonModeEnabled = True
                             randomButton = None
                             randomButtonCounter = 0
