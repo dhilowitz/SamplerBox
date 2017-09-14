@@ -1,4 +1,5 @@
 from pygame import time as pytime
+import time
 import random
 import math
 
@@ -45,6 +46,10 @@ class LaunchpadScalemode:
 		'IonEol':           [0, 2, 3, 4, 5, 7, 8, 9, 10, 11]
 	}
 
+	WHITE_KEYS = MUSICAL_MODES['Major']
+
+	NOTE_NAMES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
 	NOTE_COLORS = { 
 		"Mk1": { 
 			"pressed": [0, 63],    
@@ -64,23 +69,28 @@ class LaunchpadScalemode:
 
 	# Settings
 	note_callback = None
+	func_button_callback = None
 
 	# State Variables
 	_launchpad_model = None
 	lp = None
 	_pressed_notes = []
 	_pressed_buttons = []
-	gridMusicalMode = 'Major'
-	gridOctave = 3
-	gridKey = 0
+	_grid_musical_mode = 'Major'
+	_grid_octave = 3
+	_grid_key = 0
 	_launchpad_mode = "notes" # possible values are "notes" and "settings"
 
 	def __init__( self ):
 		print("LaunchpadScalemode Initialized!")
 
 	def start( self ):
+		self.discover_launchpad(True)
+		self._main_loop()
+		
+	def discover_launchpad(self, keep_checking=False):
 		# create an instance
-		self.lp = launchpad.Launchpad();
+		self.lp = launchpad.Launchpad()
 		while self._launchpad_model is None:
 			# lp.ListAll()
 			# check what we have here and override lp if necessary
@@ -101,20 +111,25 @@ class LaunchpadScalemode:
 					self._launchpad_model = "Mk1"
 
 			if self._launchpad_model is None:
-				# print("Did not find any Launchpads, meh...")					
-				time.sleep(2)
-		
+				if keep_checking is False:
+					print("Did not find any Launchpads, meh...")					
+					return
+				else:
+					time.sleep(2)
+
+	def _main_loop(self):
 		self.lp.ButtonFlush()
 		self.lp.Reset()
 
-		self.color_buttons()
+		self._color_buttons()
 
 		randomButton = None
 		randomButtonCounter = 0
 		randomButtonModeEnabled = False
 
 		while True:
-			pytime.wait(5)
+			# pytime.wait(5)
+			time.sleep(0.005) # 5ms wait between loops
 			but = self.lp.ButtonStateXY()
 
 			if randomButtonModeEnabled:
@@ -134,7 +149,7 @@ class LaunchpadScalemode:
 				pressed = (but[2] > 0) or (but[2] == True)
 
 				if self._launchpad_mode is "notes":
-					if (but[0] < 8) and (but[1] != 0):
+					if (x < 9) and (but[1] != 0):
 						if pressed:
 							velocity = 100
 							if self._launchpad_model is "Pro":
@@ -158,37 +173,27 @@ class LaunchpadScalemode:
 								randomButton = None
 				if self._launchpad_mode is "settings":
 					if (((0 <= but[0] < 7) and (but[1] == 3)) or ((but[0] in [0, 1, 3, 4, 5]) and but[1] == 2)) and (but[2] == 127 or but[2] == True):
-						self.gridKey = self.MUSICAL_MODES['Major'][but[0]] + (but[1] == 2)
-						self.color_buttons()
-						print "Key is ", self.NOTES[self.gridKey]
-				# if but[0] == 0 and but[1] == 0 and (but[2] == 127 or but[2] == True):
-				# 	preset -= 1
-				# 	if preset < 0:
-				# 		preset = 127
-				# 	LoadSamples()
-				# elif but[0] == 1 and but[1] == 0 and (but[2] == 127 or but[2] == True):
-				# 	preset += 1
-				# 	if preset > 127:
-				# 		preset = 0
-				# 	LoadSamples()
-				elif but[0] == 8 and but[1] == 2:
-					if but[2] == 127 or but[2] == True:
+						self._grid_key = self.WHITE_KEYS[but[0]] + (but[1] == 2)
+						self._color_buttons()
+						print "Key is ", self.NOTE_NAMES[self._grid_key]
+				if but[0] in [0,1] and but[1] == 0 and pressed:
+					self.func_button_callback(x, y, pressed)
+				elif x is 9 and but[1] == 2:
+					if pressed:
 						self._launchpad_mode = "settings"
 						self.lp.Reset()
-						self.color_buttons
-					elif but[2] == 0 or but[2] == False:
+						self._color_buttons()
+					else:
 						self._launchpad_mode = "notes"
-						self.color_buttons
+						self._color_buttons()
 				elif but[0] == 8 and but[1] == 3 and (but[2] == 127 or but[2] == True):
-					if self.gridOctave < 8:
-						self.gridOctave += 1
+					if self._grid_octave < 8:
+						self._grid_octave += 1
 				elif but[0] == 8 and but[1] == 4 and (but[2] == 127 or but[2] == True):
-					if self.gridOctave > 0:
-						self.gridOctave -= 1
-				
+					if self._grid_octave > 0:
+						self._grid_octave -= 1
 				
 				print(" event: ", but, but[0]+1, (8 - but[1]) + 1)
-
 
 	def _color_note_button(self, x, y, rootNote=False, pressed=False):
 		if pressed:
@@ -204,7 +209,7 @@ class LaunchpadScalemode:
 		lpX = x - 1
 		lpY = -1 * (y - 9)
 
-		if self._launchpad_model == "Mk1":
+		if self._launchpad_model is "Mk1":
 			colorSet = "Mk1"
 			self.lp.LedCtrlXY(lpX, lpY, self.NOTE_COLORS[self._launchpad_model][buttonType][0], self.NOTE_COLORS[self._launchpad_model][buttonType][1])
 		else:
@@ -212,7 +217,7 @@ class LaunchpadScalemode:
 			self.lp.LedCtrlXY(lpX, lpY, self.NOTE_COLORS[colorSet][buttonType][0], self.NOTE_COLORS[colorSet][buttonType][1], self.NOTE_COLORS[colorSet][buttonType][2])
 
 
-	def color_buttons(self):
+	def _color_buttons(self):
 		if self._launchpad_mode is "notes":
 			for x in range(1, 9):
 				for y in range(1, 9):
@@ -220,18 +225,18 @@ class LaunchpadScalemode:
 					scaleNoteNumber = noteInfo[2]
 					self._color_note_button(x, y, (scaleNoteNumber == 0), (noteInfo[0] in self._pressed_notes))
 		elif self._launchpad_mode is "settings":
-			self._color_button(1, 6, "settingsKeyOn" if self.gridKey is 0 else "settingsKeyOff")                
-			self._color_button(1, 7, "settingsKeyOn" if self.gridKey is 1 else "settingsKeyOff")                
-			self._color_button(2, 6, "settingsKeyOn" if self.gridKey is 2 else "settingsKeyOff")                
-			self._color_button(2, 7, "settingsKeyOn" if self.gridKey is 3 else "settingsKeyOff")                
-			self._color_button(3, 6, "settingsKeyOn" if self.gridKey is 4 else "settingsKeyOff")
-			self._color_button(4, 6, "settingsKeyOn" if self.gridKey is 5 else "settingsKeyOff")
-			self._color_button(4, 7, "settingsKeyOn" if self.gridKey is 6 else "settingsKeyOff")
-			self._color_button(5, 6, "settingsKeyOn" if self.gridKey is 7 else "settingsKeyOff")
-			self._color_button(5, 7, "settingsKeyOn" if self.gridKey is 8 else "settingsKeyOff")
-			self._color_button(6, 6, "settingsKeyOn" if self.gridKey is 9 else "settingsKeyOff")
-			self._color_button(6, 7, "settingsKeyOn" if self.gridKey is 10 else "settingsKeyOff")
-			self._color_button(7, 6, "settingsKeyOn" if self.gridKey is 11 else "settingsKeyOff")
+			self._color_button(1, 6, "settingsKeyOn" if self._grid_key is 0 else "settingsKeyOff")                
+			self._color_button(1, 7, "settingsKeyOn" if self._grid_key is 1 else "settingsKeyOff")                
+			self._color_button(2, 6, "settingsKeyOn" if self._grid_key is 2 else "settingsKeyOff")                
+			self._color_button(2, 7, "settingsKeyOn" if self._grid_key is 3 else "settingsKeyOff")                
+			self._color_button(3, 6, "settingsKeyOn" if self._grid_key is 4 else "settingsKeyOff")
+			self._color_button(4, 6, "settingsKeyOn" if self._grid_key is 5 else "settingsKeyOff")
+			self._color_button(4, 7, "settingsKeyOn" if self._grid_key is 6 else "settingsKeyOff")
+			self._color_button(5, 6, "settingsKeyOn" if self._grid_key is 7 else "settingsKeyOff")
+			self._color_button(5, 7, "settingsKeyOn" if self._grid_key is 8 else "settingsKeyOff")
+			self._color_button(6, 6, "settingsKeyOn" if self._grid_key is 9 else "settingsKeyOff")
+			self._color_button(6, 7, "settingsKeyOn" if self._grid_key is 10 else "settingsKeyOff")
+			self._color_button(7, 6, "settingsKeyOn" if self._grid_key is 11 else "settingsKeyOff")
 
 		self._color_button(1, 9, "pressed") # sample down
 		self._color_button(2, 9, "pressed") # sample up
@@ -243,7 +248,7 @@ class LaunchpadScalemode:
 		base8NoteNumber = (x-1) + (3 * (y-1))
 		noteOctave = int(math.floor(base8NoteNumber / 7))
 		scaleNoteNumber = base8NoteNumber % 7
-		midiNote = ((self.gridOctave + 1) * 12) + self.gridKey + self.MUSICAL_MODES[self.gridMusicalMode][scaleNoteNumber] + 12 * noteOctave
+		midiNote = ((self._grid_octave + 1) * 12) + self._grid_key + self.MUSICAL_MODES[self._grid_musical_mode][scaleNoteNumber] + 12 * noteOctave
 		return [midiNote, noteOctave, scaleNoteNumber]
 
 	def diff(first, second):

@@ -596,14 +596,29 @@ if USE_LAUNCHPAD:
     import launchpad_scalemode_py as scalemode
     instrument = scalemode.LaunchpadScalemode();
 
-    def LaunchpadMidiCallback(messageType, midiNote, velocity):
+    def LaunchpadNoteCallback(messageType, midiNote, velocity):
         if messageType is "note_on":
             MidiCallback([0b10010001, midiNote, velocity], None)
         elif messageType is "note_off":
             MidiCallback([0b10000001, midiNote, velocity], None)
 
-    # set the callback
-    instrument.note_callback = LaunchpadMidiCallback
+    def LaunchpadButtonCallback(x, y, pressed):
+        global preset
+        if x is 1 and y is 9 and pressed:
+            preset += 1
+            if preset > 127:
+                preset = 0
+            LoadSamples()           
+        elif x is 2 and y is 9 and pressed:
+            preset -= 1
+            if preset < 0:
+                preset = 127
+            LoadSamples()
+
+    # set the callback for midi events
+    instrument.note_callback = LaunchpadNoteCallback
+    # set the callback for function buttons
+    instrument.func_button_callback = LaunchpadButtonCallback
 
     LaunchpadThread = threading.Thread(target=instrument.start)
     LaunchpadThread.daemon = True
