@@ -66,14 +66,14 @@ class LaunchpadScalemode:
 	note_callback = None
 
 	# State Variables
-	launchpadModel = None
+	_launchpad_model = None
 	lp = None
-	pressedNotes = []
-	pressedButtons = []
+	_pressed_notes = []
+	_pressed_buttons = []
 	gridMusicalMode = 'Major'
 	gridOctave = 3
 	gridKey = 0
-	launchpadMode = "notes" # possible values are "notes" and "settings"
+	_launchpad_mode = "notes" # possible values are "notes" and "settings"
 
 	def __init__( self ):
 		print("LaunchpadScalemode Initialized!")
@@ -81,26 +81,26 @@ class LaunchpadScalemode:
 	def start( self ):
 		# create an instance
 		self.lp = launchpad.Launchpad();
-		while self.launchpadModel is None:
+		while self._launchpad_model is None:
 			# lp.ListAll()
 			# check what we have here and override lp if necessary
 			if self.lp.Check( 0, "pro" ):
 				self.lp = launchpad.LaunchpadPro()
 				if self.lp.Open():
 					print("Launchpad Pro")
-					self.launchpadModel = "Pro"
+					self._launchpad_model = "Pro"
 					
 			elif self.lp.Check( 0, "mk2" ):
 				self.lp = launchpad.LaunchpadMk2()
 				if self.lp.Open():
 					print("Launchpad Mk2")
-					self.launchpadModel = "Mk2"    
+					self._launchpad_model = "Mk2"    
 			else:
 				if self.lp.Open():
 					print("Launchpad Mk1/S/Mini")
-					self.launchpadModel = "Mk1"
+					self._launchpad_model = "Mk1"
 
-			if self.launchpadModel is None:
+			if self._launchpad_model is None:
 				# print("Did not find any Launchpads, meh...")					
 				time.sleep(2)
 		
@@ -133,11 +133,11 @@ class LaunchpadScalemode:
 				y = (8 - but[1]) + 1
 				pressed = (but[2] > 0) or (but[2] == True)
 
-				if self.launchpadMode is "notes":
+				if self._launchpad_mode is "notes":
 					if (but[0] < 8) and (but[1] != 0):
 						if pressed:
 							velocity = 100
-							if self.launchpadModel is "Pro":
+							if self._launchpad_model is "Pro":
 								velocity = but[2]
 							self._button_pressed(x, y, velocity)
 						else:
@@ -156,7 +156,7 @@ class LaunchpadScalemode:
 							if randomButton:
 								self._button_released(randomButton[0], randomButton[1])
 								randomButton = None
-				if self.launchpadMode is "settings":
+				if self._launchpad_mode is "settings":
 					if (((0 <= but[0] < 7) and (but[1] == 3)) or ((but[0] in [0, 1, 3, 4, 5]) and but[1] == 2)) and (but[2] == 127 or but[2] == True):
 						self.gridKey = self.MUSICAL_MODES['Major'][but[0]] + (but[1] == 2)
 						self.color_buttons()
@@ -173,11 +173,11 @@ class LaunchpadScalemode:
 				# 	LoadSamples()
 				elif but[0] == 8 and but[1] == 2:
 					if but[2] == 127 or but[2] == True:
-						self.launchpadMode = "settings"
+						self._launchpad_mode = "settings"
 						self.lp.Reset()
 						self.color_buttons
 					elif but[2] == 0 or but[2] == False:
-						self.launchpadMode = "notes"
+						self._launchpad_mode = "notes"
 						self.color_buttons
 				elif but[0] == 8 and but[1] == 3 and (but[2] == 127 or but[2] == True):
 					if self.gridOctave < 8:
@@ -190,7 +190,7 @@ class LaunchpadScalemode:
 				print(" event: ", but, but[0]+1, (8 - but[1]) + 1)
 
 
-	def ColorNoteButton(self, x, y, rootNote=False, pressed=False):
+	def _color_note_button(self, x, y, rootNote=False, pressed=False):
 		if pressed:
 			key = "pressed"
 		elif rootNote:
@@ -204,23 +204,22 @@ class LaunchpadScalemode:
 		lpX = x - 1
 		lpY = -1 * (y - 9)
 
-
-		if self.launchpadModel == "Mk1":
+		if self._launchpad_model == "Mk1":
 			colorSet = "Mk1"
-			self.lp.LedCtrlXY(lpX, lpY, self.NOTE_COLORS[self.launchpadModel][buttonType][0], self.NOTE_COLORS[self.launchpadModel][buttonType][1])
+			self.lp.LedCtrlXY(lpX, lpY, self.NOTE_COLORS[self._launchpad_model][buttonType][0], self.NOTE_COLORS[self._launchpad_model][buttonType][1])
 		else:
 			colorSet = "Mk2"
 			self.lp.LedCtrlXY(lpX, lpY, self.NOTE_COLORS[colorSet][buttonType][0], self.NOTE_COLORS[colorSet][buttonType][1], self.NOTE_COLORS[colorSet][buttonType][2])
 
 
 	def color_buttons(self):
-		if self.launchpadMode is "notes":
+		if self._launchpad_mode is "notes":
 			for x in range(1, 9):
 				for y in range(1, 9):
 					noteInfo = self._get_note_info(x, y)
 					scaleNoteNumber = noteInfo[2]
-					self.ColorNoteButton(x, y, (scaleNoteNumber == 0), (noteInfo[0] in self.pressedNotes))
-		elif self.launchpadMode is "settings":
+					self._color_note_button(x, y, (scaleNoteNumber == 0), (noteInfo[0] in self._pressed_notes))
+		elif self._launchpad_mode is "settings":
 			self._color_button(1, 6, "settingsKeyOn" if self.gridKey is 0 else "settingsKeyOff")                
 			self._color_button(1, 7, "settingsKeyOn" if self.gridKey is 1 else "settingsKeyOff")                
 			self._color_button(2, 6, "settingsKeyOn" if self.gridKey is 2 else "settingsKeyOff")                
@@ -262,7 +261,7 @@ class LaunchpadScalemode:
 
 	def get_currently_playing_midi_notes(self):
 		midiNotes = []
-		for buttonNumber in self.pressedButtons:
+		for buttonNumber in self._pressed_buttons:
 			x = int(math.floor(buttonNumber % 8)) + 1
 			y = (buttonNumber / 8) + 1
 			noteInfo = self._get_note_info(x, y)
@@ -277,16 +276,16 @@ class LaunchpadScalemode:
 		midiNote = noteInfo[0]
 		scaleNoteNumber = noteInfo[2]
 
-		self.pressedButtons.append(buttonNumber)
+		self._pressed_buttons.append(buttonNumber)
 
 		self.note_callback("note_on", midiNote, velocity)
-		if midiNote not in self.pressedNotes:
+		if midiNote not in self._pressed_notes:
 			buttons = self._get_buttons_for_midi_note(midiNote)
 			for newButton in buttons:
-				self.ColorNoteButton(newButton[0], newButton[1], (scaleNoteNumber == 0), True)
-			self.pressedNotes.append(midiNote)
+				self._color_note_button(newButton[0], newButton[1], (scaleNoteNumber == 0), True)
+			self._pressed_notes.append(midiNote)
 		# print "Button Pressed", buttonNumber, "with MIDI note number", midiNote
-		# print "Pressed Notes", pressedNotes
+		# print "Pressed Notes", _pressed_notes
 		return
 
 	# This takes 1-based coordinates with 1,1 being the lower left button
@@ -296,19 +295,19 @@ class LaunchpadScalemode:
 		midiNote = noteInfo[0]
 
 		# Question: what new notes (not buttons) are now no longer being pressed 
-		self.pressedButtons.remove(buttonNumber)
+		self._pressed_buttons.remove(buttonNumber)
 		
-		newPressedNotes = self.get_currently_playing_midi_notes()
+		new_pressed_notes = self.get_currently_playing_midi_notes()
 
-		if midiNote not in newPressedNotes:
+		if midiNote not in new_pressed_notes:
 			self.note_callback('note_off', midiNote, 0)
 			buttons = self._get_buttons_for_midi_note(midiNote)
 			for newButton in buttons:
 				noteInfo = self._get_note_info(newButton[0], newButton[1])
 				scaleNoteNumber = noteInfo[2]
-				self.ColorNoteButton(newButton[0], newButton[1], (scaleNoteNumber == 0))
+				self._color_note_button(newButton[0], newButton[1], (scaleNoteNumber == 0))
 
-		# newlyReleasedNotes = diff(pressedNotes, newPressedNotes)
+		# newlyReleasedNotes = diff(_pressed_notes, new_pressed_notes)
 		# print("released notes: ", newlyReleasedNotes)
 		# for newlyReleaseMidiNote in newlyReleasedNotes:
 		#     MidiCallback([0b10000001, newlyReleaseMidiNote, 100], None)
@@ -316,7 +315,7 @@ class LaunchpadScalemode:
 		#     for newButton in buttons:
 		#         noteInfo = _get_note_info(newButton[0], newButton[1])
 		#         scaleNoteNumber = noteInfo[2]
-		#         ColorNoteButton(newButton[0], newButton[1], (scaleNoteNumber == 0))
-		self.pressedNotes = newPressedNotes
-		# print "Pressed Notes", newPressedNotes
+		#         _color_note_button(newButton[0], newButton[1], (scaleNoteNumber == 0))
+		self._pressed_notes = new_pressed_notes
+		# print "Pressed Notes", new_pressed_notes
 		return
