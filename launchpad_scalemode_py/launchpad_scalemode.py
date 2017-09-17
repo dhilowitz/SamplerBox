@@ -128,7 +128,6 @@ class LaunchpadScalemode:
 		randomButtonModeEnabled = False
 
 		while True:
-			# pytime.wait(5)
 			time.sleep(0.005) # 5ms wait between loops
 			but = self.lp.ButtonStateXY()
 
@@ -149,7 +148,7 @@ class LaunchpadScalemode:
 				pressed = (but[2] > 0) or (but[2] == True)
 
 				if self._launchpad_mode is "notes":
-					if (x < 9) and (but[1] != 0):
+					if (x < 9) and (y < 9):
 						if pressed:
 							velocity = 100
 							if self._launchpad_model is "Pro":
@@ -157,28 +156,29 @@ class LaunchpadScalemode:
 							self._button_pressed(x, y, velocity)
 						else:
 							self._button_released(x, y)
-					elif but[0] == 8 and but[1] == 8 and (but[2] == 127 or but[2] == True):
+					elif x == 9 and y == 1 and pressed:
 						# Clear screen
 						self.lp.Reset()
-					elif but[0] == 8 and but[1] == 7:
+					elif x == 9 and y == 2:
 						# Random button mode
-						if but[2] > 0 or but[2] == True:
+						if pressed:
 							randomButtonModeEnabled = True
 							randomButton = None
 							randomButtonCounter = 0
-						elif but[2] == 0 or but[2] == False:
+						else:
 							randomButtonModeEnabled = False
 							if randomButton:
 								self._button_released(randomButton[0], randomButton[1])
 								randomButton = None
 				if self._launchpad_mode is "settings":
-					if (((0 <= but[0] < 7) and (but[1] == 3)) or ((but[0] in [0, 1, 3, 4, 5]) and but[1] == 2)) and (but[2] == 127 or but[2] == True):
-						self._grid_key = self.WHITE_KEYS[but[0]] + (but[1] == 2)
+					if (((1 <= x < 8) and (y == 6)) or ((x in [1, 2, 4, 5, 6]) and y == 7)) and pressed:
+						# Grid Key
+						self._grid_key = self.WHITE_KEYS[x - 1] + (y == 7)
 						self._color_buttons()
 						print "Key is ", self.NOTE_NAMES[self._grid_key]
-				if but[0] in [0,1] and but[1] == 0 and pressed:
+				if x in [1, 2] and y == 9 and pressed:
 					self.func_button_callback(x, y, pressed)
-				elif x is 9 and but[1] == 2:
+				elif x is 9 and y == 7:
 					if pressed:
 						self._launchpad_mode = "settings"
 						self.lp.Reset()
@@ -186,14 +186,14 @@ class LaunchpadScalemode:
 					else:
 						self._launchpad_mode = "notes"
 						self._color_buttons()
-				elif but[0] == 8 and but[1] == 3 and (but[2] == 127 or but[2] == True):
+				elif x == 9 and y == 6 and pressed:
 					if self._grid_octave < 8:
 						self._grid_octave += 1
-				elif but[0] == 8 and but[1] == 4 and (but[2] == 127 or but[2] == True):
+				elif x == 9 and y == 5 and pressed:
 					if self._grid_octave > 0:
 						self._grid_octave -= 1
 				
-				print(" event: ", but, but[0]+1, (8 - but[1]) + 1)
+				print(" event: ", but, x, y)
 
 	def _color_note_button(self, x, y, rootNote=False, pressed=False):
 		if pressed:
@@ -215,7 +215,6 @@ class LaunchpadScalemode:
 		else:
 			colorSet = "Mk2"
 			self.lp.LedCtrlXY(lpX, lpY, self.NOTE_COLORS[colorSet][buttonType][0], self.NOTE_COLORS[colorSet][buttonType][1], self.NOTE_COLORS[colorSet][buttonType][2])
-
 
 	def _color_buttons(self):
 		if self._launchpad_mode is "notes":

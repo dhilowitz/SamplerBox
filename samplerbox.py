@@ -15,7 +15,7 @@
 #########################################
 
 AUDIO_DEVICE_ID = 1                     # change this number to use another soundcard
-SAMPLES_DIR = "."                       # The root directory containing the sample-sets. Example: "/media/" to look for samples on a USB stick / SD card
+SAMPLES_DIR = "../launchpad-samplerbox"                       # The root directory containing the sample-sets. Example: "/media/" to look for samples on a USB stick / SD card
 USE_SERIALPORT_MIDI = False             # Set to True to enable MIDI IN via SerialPort (e.g. RaspberryPi's GPIO UART pins)
 USE_I2C_7SEGMENTDISPLAY = False         # Set to True to use a 7-segment display via I2C
 USE_LAUNCHPAD = True                    # Set to True to add support for Launchpad
@@ -161,7 +161,7 @@ class Sound:
             npdata = numpy.repeat(npdata, 2)
         return npdata
 
-FADEOUTLENGTH = 30000
+FADEOUTLENGTH = 300000
 FADEOUT = numpy.linspace(1., 0., FADEOUTLENGTH)            # by default, float64
 FADEOUT = numpy.power(FADEOUT, 6)
 FADEOUT = numpy.append(FADEOUT, numpy.zeros(FADEOUTLENGTH, numpy.float32)).astype(numpy.float32)

@@ -2,3 +2,8 @@ build
 samplerbox_audio.so
 samplerbox_audio.c
 *.sublime-*
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
