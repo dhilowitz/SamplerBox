@@ -620,6 +620,8 @@ if USE_LAUNCHPAD:
     # set the callback for function buttons
     instrument.func_button_callback = LaunchpadButtonCallback
 
+    instrument.kid_mode = True
+
     LaunchpadThread = threading.Thread(target=instrument.start)
     LaunchpadThread.daemon = True
     LaunchpadThread.start()

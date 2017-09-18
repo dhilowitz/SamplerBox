@@ -2,6 +2,7 @@ from pygame import time as pytime
 import time
 import random
 import math
+import collections
 
 try:
 	import launchpad_py as launchpad
@@ -14,37 +15,37 @@ except ImportError:
 class LaunchpadScalemode:
 
 	# Constants
-	MUSICAL_MODES = {
-		'Major':            [0, 2, 4, 5, 7, 9, 11],
-		'Minor':            [0, 2, 3, 5, 7, 8, 10],
-		'Dorian':           [0, 2, 3, 5, 7, 9, 10],
-		'Mixolydian':       [0, 2, 4, 5, 7, 9, 10],
-		'Lydian':           [0, 2, 4, 6, 7, 9, 11],
-		'Phrygian':         [0, 1, 3, 5, 7, 8, 10],
-		'Locrian':          [0, 1, 3, 5, 6, 8, 10],
-		'Diminished':       [0, 1, 3, 4, 6, 7, 9, 10],
+	MUSICAL_MODES = collections.OrderedDict([
+		('Major', [0, 2, 4, 5, 7, 9, 11]),
+		('Minor', [0, 2, 3, 5, 7, 8, 10]),
+		('Dorian', [0, 2, 3, 5, 7, 9, 10]),
+		('Mixolydian', [0, 2, 4, 5, 7, 9, 10]),
+		('Lydian', [0, 2, 4, 6, 7, 9, 11]),
+		('Phrygian', [0, 1, 3, 5, 7, 8, 10]),
+		('Locrian', [0, 1, 3, 5, 6, 8, 10]),
+		('Diminished', [0, 1, 3, 4, 6, 7, 9, 10]),
 
-		'Whole-half':       [0, 2, 3, 5, 6, 8, 9, 11],
-		'Whole Tone':       [0, 2, 4, 6, 8, 10],
-		'Minor Blues':      [0, 3, 5, 6, 7, 10],
-		'Minor Pentatonic': [0, 3, 5, 7, 10],
-		'Major Pentatonic': [0, 2, 4, 7, 9],
-		'Harmonic Minor':   [0, 2, 3, 5, 7, 8, 11],
-		'Melodic Minor':    [0, 2, 3, 5, 7, 9, 11],
-		'Super Locrian':    [0, 1, 3, 4, 6, 8, 10],
+		('Whole-half', [0, 2, 3, 5, 6, 8, 9, 11]),
+		('Whole Tone', [0, 2, 4, 6, 8, 10]),
+		('Minor Blues', [0, 3, 5, 6, 7, 10]),
+		('Minor Pentatonic', [0, 3, 5, 7, 10]),
+		('Major Pentatonic', [0, 2, 4, 7, 9]),
+		('Harmonic Minor', [0, 2, 3, 5, 7, 8, 11]),
+		('Melodic Minor', [0, 2, 3, 5, 7, 9, 11]),
+		('Super Locrian', [0, 1, 3, 4, 6, 8, 10]),
 
-		'Bhairav':          [0, 1, 4, 5, 7, 8, 11],
-		'Hungarian Minor':  [0, 2, 3, 6, 7, 8, 11],
-		'Minor Gypsy':      [0, 1, 4, 5, 7, 8, 10],
-		'Hirojoshi':        [0, 2, 3, 7, 8],
-		'In-Sen':           [0, 1, 5, 7, 10],
-		'Iwato':            [0, 1, 5, 6, 10],
-		'Kumoi':            [0, 2, 3, 7, 9],
-		'Pelog':            [0, 1, 3, 4, 7, 8],
+		('Bhairav', [0, 1, 4, 5, 7, 8, 11]),
+		('Hungarian Minor', [0, 2, 3, 6, 7, 8, 11]),
+		('Minor Gypsy', [0, 1, 4, 5, 7, 8, 10]),
+		('Hirojoshi', [0, 2, 3, 7, 8]),
+		('In-Sen', [0, 1, 5, 7, 10]),
+		('Iwato', [0, 1, 5, 6, 10]),
+		('Kumoi', [0, 2, 3, 7, 9]),
+		('Pelog', [0, 1, 3, 4, 7, 8]),
 
-		'Spanish':          [0, 1, 3, 4, 5, 6, 8, 10],
-		'IonEol':           [0, 2, 3, 4, 5, 7, 8, 9, 10, 11]
-	}
+		('Spanish', [0, 1, 3, 4, 5, 6, 8, 10]),
+		('IonEol', [0, 2, 3, 4, 5, 7, 8, 9, 10, 11])
+	])
 
 	WHITE_KEYS = MUSICAL_MODES['Major']
 
@@ -57,6 +58,11 @@ class LaunchpadScalemode:
 			"default": [1, 1],
 			"settingsKeyOff": [0, 4],
 			"settingsKeyOn":  [0, 20],
+			"settingsGridKeyOff": [1, 1],
+			"settingsGridKeyOn":  [3, 3],
+			"settingsGridMusicalModeOff": [0, 1],
+			"settingsGridMusicalModeOn":  [0, 4],
+
 		}, 
 		"Mk2": { 
 			"pressed": [0, 50, 0], 
@@ -64,12 +70,17 @@ class LaunchpadScalemode:
 			"default": [10, 10, 15],
 			"settingsKeyOff": [0, 4, 0],
 			"settingsKeyOn":  [0, 20, 0],
+			"settingsGridKeyOff": [10, 4, 0],
+			"settingsGridKeyOn":  [20, 8, 0],
+			"settingsGridMusicalModeOff": [0, 4, 0],
+			"settingsGridMusicalModeOn":  [0, 20, 0],
 		}
 	}
 
 	# Settings
 	note_callback = None
 	func_button_callback = None
+	kid_mode = False
 
 	# State Variables
 	_launchpad_model = None
@@ -176,7 +187,9 @@ class LaunchpadScalemode:
 						self._grid_key = self.WHITE_KEYS[x - 1] + (y == 7)
 						self._color_buttons()
 						print "Key is ", self.NOTE_NAMES[self._grid_key]
-				if x in [1, 2] and y == 9 and pressed:
+					if (1 <= x <= 8) and (1 <= y <= 4):
+						self._grid_musical_mode_button_pressed(x, y)
+				if x in [1, 2] and y == 9 and pressed and (self.kid_mode is not True):
 					self.func_button_callback(x, y, pressed)
 				elif x is 9 and y == 7:
 					if pressed:
@@ -224,26 +237,66 @@ class LaunchpadScalemode:
 					scaleNoteNumber = noteInfo[2]
 					self._color_note_button(x, y, (scaleNoteNumber == 0), (noteInfo[0] in self._pressed_notes))
 		elif self._launchpad_mode is "settings":
-			self._color_button(1, 6, "settingsKeyOn" if self._grid_key is 0 else "settingsKeyOff")                
-			self._color_button(1, 7, "settingsKeyOn" if self._grid_key is 1 else "settingsKeyOff")                
-			self._color_button(2, 6, "settingsKeyOn" if self._grid_key is 2 else "settingsKeyOff")                
-			self._color_button(2, 7, "settingsKeyOn" if self._grid_key is 3 else "settingsKeyOff")                
-			self._color_button(3, 6, "settingsKeyOn" if self._grid_key is 4 else "settingsKeyOff")
-			self._color_button(4, 6, "settingsKeyOn" if self._grid_key is 5 else "settingsKeyOff")
-			self._color_button(4, 7, "settingsKeyOn" if self._grid_key is 6 else "settingsKeyOff")
-			self._color_button(5, 6, "settingsKeyOn" if self._grid_key is 7 else "settingsKeyOff")
-			self._color_button(5, 7, "settingsKeyOn" if self._grid_key is 8 else "settingsKeyOff")
-			self._color_button(6, 6, "settingsKeyOn" if self._grid_key is 9 else "settingsKeyOff")
-			self._color_button(6, 7, "settingsKeyOn" if self._grid_key is 10 else "settingsKeyOff")
-			self._color_button(7, 6, "settingsKeyOn" if self._grid_key is 11 else "settingsKeyOff")
+			self._color_button(1, 6, "settingsGridKeyOn" if self._grid_key is 0 else "settingsGridKeyOff")                
+			self._color_button(1, 7, "settingsGridKeyOn" if self._grid_key is 1 else "settingsGridKeyOff")                
+			self._color_button(2, 6, "settingsGridKeyOn" if self._grid_key is 2 else "settingsGridKeyOff")                
+			self._color_button(2, 7, "settingsGridKeyOn" if self._grid_key is 3 else "settingsGridKeyOff")                
+			self._color_button(3, 6, "settingsGridKeyOn" if self._grid_key is 4 else "settingsGridKeyOff")
+			self._color_button(4, 6, "settingsGridKeyOn" if self._grid_key is 5 else "settingsGridKeyOff")
+			self._color_button(4, 7, "settingsGridKeyOn" if self._grid_key is 6 else "settingsGridKeyOff")
+			self._color_button(5, 6, "settingsGridKeyOn" if self._grid_key is 7 else "settingsGridKeyOff")
+			self._color_button(5, 7, "settingsGridKeyOn" if self._grid_key is 8 else "settingsGridKeyOff")
+			self._color_button(6, 6, "settingsGridKeyOn" if self._grid_key is 9 else "settingsGridKeyOff")
+			self._color_button(6, 7, "settingsGridKeyOn" if self._grid_key is 10 else "settingsGridKeyOff")
+			self._color_button(7, 6, "settingsGridKeyOn" if self._grid_key is 11 else "settingsGridKeyOff")
 
-		self._color_button(1, 9, "pressed") # sample down
-		self._color_button(2, 9, "pressed") # sample up
+			self._color_button(1, 4, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Major"  else "settingsGridMusicalModeOff")
+			self._color_button(2, 4, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Minor"  else "settingsGridMusicalModeOff")
+			self._color_button(3, 4, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Dorian" else "settingsGridMusicalModeOff")
+			self._color_button(4, 4, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Mixolydian"  else "settingsGridMusicalModeOff")
+			self._color_button(5, 4, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Lydian"  else "settingsGridMusicalModeOff")
+			self._color_button(6, 4, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Phrygian"  else "settingsGridMusicalModeOff")
+			self._color_button(7, 4, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Locrian"  else "settingsGridMusicalModeOff")
+			self._color_button(8, 4, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Diminished"  else "settingsGridMusicalModeOff")
+			
+			self._color_button(1, 3, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Whole-half"  else "settingsGridMusicalModeOff")
+			self._color_button(2, 3, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Whole Tone"  else "settingsGridMusicalModeOff")
+			self._color_button(3, 3, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Minor Blues" else "settingsGridMusicalModeOff")
+			self._color_button(4, 3, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Minor Pentatonic"  else "settingsGridMusicalModeOff")
+			self._color_button(5, 3, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Major Pentatonic"  else "settingsGridMusicalModeOff")
+			self._color_button(6, 3, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Harmonic Minor"  else "settingsGridMusicalModeOff")
+			self._color_button(7, 3, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Melodic Minor"  else "settingsGridMusicalModeOff")
+			self._color_button(8, 3, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Super Locrian"  else "settingsGridMusicalModeOff")
+			
+			self._color_button(1, 2, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Bhairav"  else "settingsGridMusicalModeOff")
+			self._color_button(2, 2, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Hungarian Minor"  else "settingsGridMusicalModeOff")
+			self._color_button(3, 2, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Minor Gypsy" else "settingsGridMusicalModeOff")
+			self._color_button(4, 2, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Hirojoshi"  else "settingsGridMusicalModeOff")
+			self._color_button(5, 2, "settingsGridMusicalModeOn" if self._grid_musical_mode == "In-Sen"  else "settingsGridMusicalModeOff")
+			self._color_button(6, 2, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Iwato"  else "settingsGridMusicalModeOff")
+			self._color_button(7, 2, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Kumoi"  else "settingsGridMusicalModeOff")
+			self._color_button(8, 2, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Pelog"  else "settingsGridMusicalModeOff")
+			
+			self._color_button(1, 1, "settingsGridMusicalModeOn" if self._grid_musical_mode == "Spanish"  else "settingsGridMusicalModeOff")
+			self._color_button(2, 1, "settingsGridMusicalModeOn" if self._grid_musical_mode == "IonEol"  else "settingsGridMusicalModeOff")
+			
 		self._color_button(9, 6, "pressed") # octave up
 		self._color_button(9, 5, "pressed") # octave down
 		self._color_button(9, 7, "pressed") # settings
+		
+		if self.kid_mode is not True:
+			self._color_button(1, 9, "pressed") # sample down
+			self._color_button(2, 9, "pressed") # sample up
 
 	def _get_note_info(self, x, y):
+		base8NoteNumber = (x-1) + (3 * (y-1))
+		notesPerOctave = len(self.MUSICAL_MODES[self._grid_musical_mode])
+		noteOctave = int(math.floor(base8NoteNumber / notesPerOctave))
+		scaleNoteNumber = base8NoteNumber % notesPerOctave
+		midiNote = ((self._grid_octave + 1) * 12) + self._grid_key + self.MUSICAL_MODES[self._grid_musical_mode][scaleNoteNumber] + 12 * noteOctave
+		return [midiNote, noteOctave, scaleNoteNumber]
+
+	def _get_note_info_old(self, x, y):
 		base8NoteNumber = (x-1) + (3 * (y-1))
 		noteOctave = int(math.floor(base8NoteNumber / 7))
 		scaleNoteNumber = base8NoteNumber % 7
@@ -292,6 +345,14 @@ class LaunchpadScalemode:
 		# print "Pressed Notes", _pressed_notes
 		return
 
+	# Todo, we should actually 
+	def _all_buttons_released(self):
+		for midiNote in self._pressed_notes:
+			self.note_callback('note_off', midiNote, 0)
+
+		del self._pressed_notes[:]
+		del self._pressed_buttons[:]
+
 	# This takes 1-based coordinates with 1,1 being the lower left button
 	def _button_released(self, x, y):
 		buttonNumber = (x-1)  + ((y-1) * 8)
@@ -299,6 +360,9 @@ class LaunchpadScalemode:
 		midiNote = noteInfo[0]
 
 		# Question: what new notes (not buttons) are now no longer being pressed 
+		if buttonNumber not in self._pressed_buttons:
+			return
+
 		self._pressed_buttons.remove(buttonNumber)
 		
 		new_pressed_notes = self.get_currently_playing_midi_notes()
@@ -323,3 +387,12 @@ class LaunchpadScalemode:
 		self._pressed_notes = new_pressed_notes
 		# print "Pressed Notes", new_pressed_notes
 		return
+
+	def _grid_musical_mode_button_pressed(self, x, y):
+		index = (x - 1) + ((4 - y) * 8)
+		self._grid_musical_mode = self.MUSICAL_MODES.keys()[index]
+		print "Musical mode is", self._grid_musical_mode
+
+		self._all_buttons_released()
+		self._color_buttons()
+		return;
