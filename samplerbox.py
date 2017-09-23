@@ -14,8 +14,8 @@
 # CONFIG
 #########################################
 
-AUDIO_DEVICE_ID = 1                     # change this number to use another soundcard
-SAMPLES_DIR = "../launchpad-samplerbox"                       # The root directory containing the sample-sets. Example: "/media/" to look for samples on a USB stick / SD card
+AUDIO_DEVICE_ID = 2                     # change this number to use another soundcard
+SAMPLES_DIR = "/media"                       # The root directory containing the sample-sets. Example: "/media/" to look for samples on a USB stick / SD card
 USE_SERIALPORT_MIDI = False             # Set to True to enable MIDI IN via SerialPort (e.g. RaspberryPi's GPIO UART pins)
 USE_I2C_7SEGMENTDISPLAY = False         # Set to True to use a 7-segment display via I2C
 USE_LAUNCHPAD = True                    # Set to True to add support for Launchpad
@@ -647,7 +647,7 @@ previous = []
 while True:
     for port in midi_in[0].ports:
         if port not in previous and 'Midi Through' not in port and 'Launchpad' not in port:
-            if USE_LAUNCHPAD is True and ('Launchpad' in port) or ('RtMidiOut' in port):
+            if USE_LAUNCHPAD is True and ('Launchpad' in port or 'RtMidiOut' in port or 'RTMIDI' in port):
                 continue
             midi_in.append(rtmidi.MidiIn())
             midi_in[-1].callback = MidiCallback
