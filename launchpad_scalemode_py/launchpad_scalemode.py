@@ -1,4 +1,3 @@
-from pygame import time as pytime
 import time
 import random
 import math
@@ -81,6 +80,8 @@ class LaunchpadScalemode:
 	note_callback = None
 	func_button_callback = None
 	kid_mode = False
+	debugging = False
+	intro_message = None
 
 	# State Variables
 	_launchpad_model = None
@@ -127,6 +128,9 @@ class LaunchpadScalemode:
 					return
 				else:
 					time.sleep(2)
+		if self.intro_message is not None and len(self.intro_message) > 0:
+			self._scroll_text(self.intro_message, 'settingsKeyOff')
+			pass
 
 	def _main_loop(self):
 		self.lp.ButtonFlush()
@@ -206,7 +210,8 @@ class LaunchpadScalemode:
 					if self._grid_octave > 0:
 						self._grid_octave -= 1
 				
-				print(" event: ", but, x, y)
+				if self.debugging is True:
+					print(" event: ", but, x, y)
 
 	def _color_note_button(self, x, y, rootNote=False, pressed=False):
 		if pressed:
@@ -218,6 +223,7 @@ class LaunchpadScalemode:
 
 		self._color_button(x, y, key)
 
+
 	def _color_button(self, x, y, buttonType):
 		lpX = x - 1
 		lpY = -1 * (y - 9)
@@ -228,6 +234,15 @@ class LaunchpadScalemode:
 		else:
 			colorSet = "Mk2"
 			self.lp.LedCtrlXY(lpX, lpY, self.NOTE_COLORS[colorSet][buttonType][0], self.NOTE_COLORS[colorSet][buttonType][1], self.NOTE_COLORS[colorSet][buttonType][2])
+
+	def _scroll_text(self, text, colorKey):
+		if self._launchpad_model is "Mk1":
+			colorSet = "Mk1"
+			self.lp.LedCtrlString(text, self.NOTE_COLORS[self._launchpad_model][colorKey][0], self.NOTE_COLORS[self._launchpad_model][colorKey][1], self.lp.SCROLL_LEFT, 20)
+		else:
+			colorSet = "Mk2"
+			self.lp.LedCtrlString(text, self.NOTE_COLORS[colorSet][colorKey][0], self.NOTE_COLORS[colorSet][colorKey][1], self.NOTE_COLORS[colorSet][colorKey][2], self.lp.SCROLL_LEFT, 20)
+
 
 	def _color_buttons(self):
 		if self._launchpad_mode is "notes":

@@ -620,7 +620,9 @@ if USE_LAUNCHPAD:
     # set the callback for function buttons
     instrument.func_button_callback = LaunchpadButtonCallback
 
-    instrument.kid_mode = True
+    instrument.kid_mode = False
+    instrument.debugging = True
+    # instrument.intro_message = "SamplerBox"
 
     LaunchpadThread = threading.Thread(target=instrument.start)
     LaunchpadThread.daemon = True
@@ -645,6 +647,8 @@ previous = []
 while True:
     for port in midi_in[0].ports:
         if port not in previous and 'Midi Through' not in port and 'Launchpad' not in port:
+            if USE_LAUNCHPAD is True and ('Launchpad' in port) or ('RtMidiOut' in port):
+                continue
             midi_in.append(rtmidi.MidiIn())
             midi_in[-1].callback = MidiCallback
             midi_in[-1].open_port(port)
