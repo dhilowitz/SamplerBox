@@ -22,7 +22,7 @@ import random
 import sys
 import time
 
-import rtmidi
+import rtmidi2
 
 try:
 	from charset import *
@@ -71,7 +71,7 @@ class Midi:
 	def OpenOutput( self, midi_id ):
 		if self.devOut is None:
 			try:
-				self.devOut = rtmidi.MidiOut()
+				self.devOut = rtmidi2.MidiOut()
 				self.devOut.open_port(midi_id)
 			except:
 				self.devOut = None
@@ -94,7 +94,7 @@ class Midi:
 	def OpenInput( self, midi_id ):
 		if self.devIn is None:
 			try:
-				self.devIn = rtmidi.MidiIn()
+				self.devIn = rtmidi2.MidiIn()
 				self.devIn.open_port(midi_id)
 			except:
 				self.devIn = None
@@ -115,8 +115,8 @@ class Midi:
 	#-------------------------------------------------------------------------------------
 	def ReadRaw( self ):
 		msg = self.devIn.get_message()
-		if msg != (None, None):
-			return msg
+		if msg != None:
+			return [msg]
 		else:
 			return None
 		
@@ -126,18 +126,7 @@ class Midi:
 	#-- sends a single, short message
 	#-------------------------------------------------------------------------------------
 	def RawWrite( self, stat, dat1, dat2 ):
-		self.devOut.send_message( [stat, dat1, dat2] )
-
-		
-	#-------------------------------------------------------------------------------------
-	#-- Sends a list of messages. If timestamp is 0, it is ignored.
-	#-- Amount of <dat> bytes is arbitrary.
-	#-- [ [ [stat, <dat1>, <dat2>, <dat3>], timestamp ],  [...], ... ]
-	#-- <datN> fields are optional
-	#-------------------------------------------------------------------------------------
-	def RawWriteMulti( self, lstMessages ):
-		self.devOut.send_message( lstMessages )
-
+		self.devOut.send_messages(stat, [(stat, dat1, dat2)])
 	
 	#-------------------------------------------------------------------------------------
 	#-- Sends a single system-exclusive message, given by list <lstMessage>
@@ -146,8 +135,7 @@ class Midi:
 	#-- Timestamp is not supported and will be sent as '0' (for now)
 	#-------------------------------------------------------------------------------------
 	def RawWriteSysEx( self, lstMessage, timeStamp = 0 ):
-		# self.devOut.send_message( [timeStamp, [0xf0] + lstMessage + [0xf7]] )
-		self.devOut.send_message( [0xf0] + lstMessage + [0xf7] )
+		self.devOut.send_sysex(lstMessage)
 
 
 	########################################################################################
@@ -164,8 +152,8 @@ class Midi:
 			i = 0
 
 			if output == True:
-				midi_out = rtmidi.MidiOut()
-				for port in midi_out.get_ports():
+				midi_out = rtmidi2.MidiOut()
+				for port in rtmidi2.get_out_ports():
 					if quiet == False:
 						print(port, 1, 0)
 						sys.stdout.flush()
@@ -174,8 +162,8 @@ class Midi:
 					i += 1
 
 			if input == True:
-				midi_in = rtmidi.MidiIn()
-				for port in midi_in.get_ports():
+				midi_in = rtmidi2.MidiIn()
+				for port in rtmidi2.get_in_ports():
 					if quiet == False:
 						print(port, 0, 1)
 						sys.stdout.flush()
