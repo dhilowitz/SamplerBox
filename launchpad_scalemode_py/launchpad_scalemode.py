@@ -289,9 +289,13 @@ class LaunchpadScalemode:
 			self._color_button(2, 9, "pressed") # sample up
 
 	def _get_note_info(self, x, y):
+		# eg. x, y = 3, 3
 		base8NoteNumber = (x-1) + (3 * (y-1))
+		# base8NoteNumber = 8
 		notesPerOctave = len(self.MUSICAL_MODES[self._grid_musical_mode])
+		# notePerOctave = 7
 		noteOctave = int(math.floor(base8NoteNumber / notesPerOctave))
+		# noteOctave = 1
 		scaleNoteNumber = base8NoteNumber % notesPerOctave
 		midiNote = ((self._grid_octave + 1) * 12) + self._grid_key + self.MUSICAL_MODES[self._grid_musical_mode][scaleNoteNumber] + 12 * noteOctave
 		return [midiNote, noteOctave, scaleNoteNumber]

@@ -2,6 +2,7 @@ build
 samplerbox_audio.so
 samplerbox_audio.c
 *.sublime-*
+sftp-config.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
